@@ -1,5 +1,5 @@
 /*
-spesifikasi :
+spesifikasi : 
 input  :
 output :
 */

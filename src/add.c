@@ -1,7 +1,7 @@
 /*
 spesifikasi : Membuat data dokter dalam bentuk struct dan memasukkannnya ke linked list
-input  : nama dokter, preferensi shift. 
-output : struct doctor
+input  : nama dokter,id, preferensi shift (array), maksimal shift. 
+output : struct doctor yang telah ditambahkan ke dalam linked list dokter
 
 */
 #include <stdio.h>
