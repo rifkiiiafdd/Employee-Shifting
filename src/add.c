@@ -9,15 +9,21 @@ output : struct doctor yang telah ditambahkan ke dalam linked list dokter
 #include <string.h>
 
 typedef  struct doctor {
-int id;
-char nama[20];
-int max_shift;
-int shift_total[5];
-int preferensi_shift[7][3];
+    int id;
+    char nama[20];
+    int max_shift;
+    int shift_total[5];
+    int preferensi_shift[7][3];
+    struct doctor *next;
 } doctor;
+
+doctor* create_node (int id, char* name, int max_shift) {
+    
+}
 
 
 int main() {
+
 
     return 0;
 }
