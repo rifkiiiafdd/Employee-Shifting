@@ -21,6 +21,7 @@ typedef  struct Doctor {
 } Doctor;
 
 Doctor *head = NULL;
+Doctor* data[10];
 
 void printing_matriks(int baris, int kolom, int matriks[baris][kolom]) 
 {
@@ -38,6 +39,7 @@ void printing_matriks(int baris, int kolom, int matriks[baris][kolom])
 void add(int id, char* name, int max_shift, int preference[7][3]) {
     Doctor* newnode = malloc(sizeof(Doctor));
 
+    
     strcpy(newnode->name, name);
 
     newnode->id = id;
@@ -53,15 +55,26 @@ void add(int id, char* name, int max_shift, int preference[7][3]) {
         newnode->shift_scheduled_per_week[i] = 0;
     }
 
-    newnode->next = head;
-    head = newnode;
-    
+    data[number_doctor] = newnode;
+
     number_doctor += 1;
 
 }
 
 int rng(int number_doctor) {
-    return rand() % number_doctor + 1;
+    return rand() % number_doctor;
+}
+
+
+int check_preference(int id, int day, int shift) {
+    // Mengecek Preferensi. Jika tidak bisa pada shift tersebut. maka output 1
+    if (data[id - 1]->preference[day][shift])  {
+        return 1;
+    }
+    else {
+        return 0;
+    }
+
 }
 
 int main() {
@@ -71,19 +84,26 @@ int main() {
         {1,1,1},
         {1,1,1},
         {1,1,1},
-        {1,1,1},
+        {1,1,1},   
         {1,1,1},
         {1,1,1},
         {1,1,1},
     };
+    int preference2[7][3] = {
+        {1,1,1},
+        {1,1,1},
+        {1,1,1},
+        {1,1,1},   
+        {1,1,1},
+        {0,0,0},
+        {1,1,1},
+    };
 
-    add(1, "Dummy", 4, preference);
-    add(2, "Rena", 4, preference);
-    add(3, "Levi", 5, preference);
-    add(4, "Sinta", 4, preference);
-    add(5, "Evelyn", 4, preference);
-
-
+    add(1, "Dummy", 18, preference2);
+    add(2, "Rena", 3, preference);
+    // add(3, "Levi", 5, preference);
+    // add(4, "Sinta", 5, preference);
+    // add(5, "Evelyn", 5, preference);
 
 
     // array inizialitation
@@ -99,53 +119,56 @@ int main() {
         // printf("\nrandom %d \n", random_doctor);
 
         int dokter_ke = 0;   
-        int preference_focus = 1; // Jika bernilai 1, preferensi dokter diperhitungkan
-        Doctor *temp = head;
+        Doctor *temp = data[random_doctor];
         while(dokter_ke++ < number_doctor * 2) {
-            // printf("Dokter ke %d  random %d  id %d jumlah dokter %d\n", dokter_ke , random_doctor, temp->id, number_doctor);
-            if (temp->id == random_doctor) {
-                // printf("i %d j %d\n",i + 1,j + 1);
-                // printf("sift%d %d\n",temp->max_shift_per_week, temp->shift_scheduled_per_week[i / 7]);
-                if (temp->max_shift_per_week > temp->shift_scheduled_per_week[i / 7]) {
-                    
-                    if (temp->preference[i%7][j] == 1 && preference_focus == 1) {
-                        schedule[i][j] = temp->id;
-                        temp->shift_scheduled_per_week[i / 7] += 1;
-                        break;
-                    }
-                    else if (preference_focus == 0) {
-                        schedule[i][j] = temp->id;
-                        temp->shift_scheduled_per_week[i / 7] += 1;
-                        break;
-                    }
-                }
-                else {
-                    random_doctor -= 1;
-                    if (random_doctor == 0) {
-                    random_doctor = number_doctor;
-                    }
-                }
 
-                
+            if (temp->max_shift_per_week > temp->shift_scheduled_per_week[i / 7]) {
+                schedule[i][j] = temp->id;
+                temp->shift_scheduled_per_week[i / 7] += 1;
+                break;
             }
 
-            temp = temp->next;
-            
-
-            if (temp == NULL) {
-                temp = head;
+            else {
+                random_doctor += 1;
+                if (random_doctor  == number_doctor) {
+                    random_doctor = 0;
+                }
+                temp = data[random_doctor];
             }
 
-            // if (dokter_ke = number_doctor) {
-            //     preference_focus = 0;
-            // }
         }
-
         }
     }
 
-    printing_matriks(30,3,schedule);
+    
 
+    // program penukar jadwal
+    int id_awal, id_pengganti;
+    for (int i = 0; i < 7; i++) {
+        for (int j = 0; j < 3; j++) {
+            id_awal = schedule[i][j];
+            if (check_preference(id_awal, i, j) == 0) {
+                for (int k = 0; k < 7; k++) {
+                    for (int l = 0; l < 3; l++) {
+                        id_pengganti =  schedule[k][l];
+
+                        if (id_pengganti != id_awal) {
+                            if (check_preference(id_pengganti, i, j) == 1 && check_preference(id_awal, k, l) == 1) {
+                            schedule[i][j] = id_pengganti;
+                            schedule[k][l] = id_awal;
+                            }
+                            break;
+                        }
+                    }
+                    if (schedule[i][j] != id_awal) {
+                        break;
+                    }
+                }
+            }
+        }
+    }
+    
+    printing_matriks(7,3,schedule);
     
 
     return 0;
