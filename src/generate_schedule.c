@@ -80,48 +80,99 @@ int check_preference(int id, int day, int shift) {
 int main() {
     srand(time(NULL));
 
-    int preference[7][3] = {
-        {1,1,1},
-        {1,1,1},
-        {1,1,1},
-        {1,1,1},   
-        {1,1,1},
-        {1,1,1},
-        {1,1,1},
-    };
-    int preference1[7][3] = {
-        {1,1,1},
-        {1,1,1},
-        {0,0,1},
-        {1,1,1},   
-        {1,1,1},
-        {1,1,1},
-        {1,1,1},
-    };
-    int preference2[7][3] = {
-        {1,1,1},
-        {1,1,1},
-        {1,1,1},
-        {1,1,1},   
-        {1,1,1},
-        {0,0,0},
-        {1,1,1},
-    };
+   int preference1[7][3] = {
+    {1, 0, 0},
+    {0, 1, 0},
+    {0, 0, 1},
+    {0, 0, 0},
+    {0, 0, 0},
+    {0, 0, 0},
+    {0, 0, 0}
+};
+
+int preference2[7][3] = {
+    {0, 0, 0},
+    {1, 0, 0},
+    {0, 1, 0},
+    {0, 0, 1},
+    {0, 0, 0},
+    {0, 0, 0},
+    {0, 0, 0}
+};
+
+int preference3[7][3] = {
+    {0, 0, 0},
+    {0, 0, 0},
+    {1, 0, 0},
+    {0, 1, 0},
+    {0, 0, 1},
+    {0, 0, 0},
+    {0, 0, 0}
+};
+
+int preference4[7][3] = {
+    {0, 0, 0},
+    {0, 0, 0},
+    {0, 0, 0},
+    {1, 0, 0},
+    {0, 1, 0},
+    {0, 0, 1},
+    {0, 0, 0}
+};
+
+int preference5[7][3] = {
+    {0, 0, 0},
+    {0, 0, 0},
+    {0, 0, 0},
+    {0, 0, 0},
+    {1, 0, 0},
+    {0, 1, 0},
+    {0, 0, 1}
+};
+
+int preference6[7][3] = {
+    {0, 0, 1},
+    {0, 0, 0},
+    {0, 0, 0},
+    {0, 0, 0},
+    {0, 0, 0},
+    {1, 0, 0},
+    {0, 1, 0}
+};
+
+int preference7[7][3] = {
+    {0, 1, 0},
+    {0, 0, 1},
+    {0, 0, 0},
+    {0, 0, 0},
+    {0, 0, 0},
+    {0, 0, 0},
+    {1, 0, 0}
+};
+
+
 
     // Data dokter
-    add(1, "Dummy", 7, preference2);
-    add(2, "Rena", 6, preference1);
-    add(3, "Levi", 5, preference);
-    add(4, "Sinta", 5, preference1);
-    add(5, "Evelyn", 5, preference2);
+    add(1, "Dummy", 3, preference1);
+    add(2, "Rena", 3, preference2);
+    add(3, "Levi", 3, preference3);
+    add(4, "Sinta", 3, preference4);
+    add(5, "Evelyn", 3, preference5);
+    add(6, "Albert", 3, preference6);
+    add(7, "Tony", 3, preference7);
 
 
     // array inizialitation
     int schedule[30][3] ={0};
 
     int random_doctor, id_doctor;
+    int preference_focus = 1;
 
     for (int i = 0; i < 30; i++) {
+        
+        if (i % 7 == 1 && i != 1) {
+                preference_focus = 1;
+            }
 
         for(int j = 0; j < 3; j ++){
         
@@ -130,12 +181,31 @@ int main() {
 
         int dokter_ke = 0;   
         Doctor *temp = data[random_doctor];
-        while(dokter_ke++ < number_doctor * 2) {
+        // printf("i %d j %d fre %d\n",i+1,j+1, preference_focus);
+        while(dokter_ke++ < number_doctor*2) {
+
+            // printf("i %d j %d\n",i + 1,j + 1);
+            // printf("Dokter ke %d  random %d  id %d jumlah dokter %d\n", dokter_ke , random_doctor, temp->id, number_doctor);
+            
 
             if (temp->max_shift_per_week > temp->shift_scheduled_per_week[i / 7]) {
-                schedule[i][j] = temp->id;
-                temp->shift_scheduled_per_week[i / 7] += 1;
-                break;
+
+                if (temp->preference[i % 7][j] == 1 && preference_focus == 1) {
+                    // printf("Hahaha\n");
+                    // printf("sift%d %d\n",temp->max_shift_per_week, temp->shift_scheduled_per_week[i / 7]);
+                    schedule[i][j] = temp->id;
+                    temp->shift_scheduled_per_week[i / 7] += 1;
+                    break;
+                }
+                else if (preference_focus == 0){
+                    schedule[i][j] = temp->id;
+                    temp->shift_scheduled_per_week[i / 7] += 1;
+                    break;
+                } 
+            }
+
+            if (dokter_ke > number_doctor) {
+                preference_focus = 0;
             }
 
             else {
@@ -146,46 +216,31 @@ int main() {
                 temp = data[random_doctor];
             }
 
+
+
+            
+
         }
+
+        
         }
+        
     }
 
-    // program penukar jadwal
-    int id_awal, id_pengganti;
-    int alternatif_found;
-    for (int i = 0; i < 7; i++) {
-        for (int j = 0; j < 3; j++) {
-            id_awal = schedule[i][j];
-            if (check_preference(id_awal, i, j) == 0) {
-                alternatif_found = 0;
-                for (int k = 0; k < 7; k++) {
-                    for (int l = 0; l < 3; l++) {
-                        id_pengganti =  schedule[k][l];
+ 
 
-                        if (id_pengganti != id_awal) {
-                            if (check_preference(id_pengganti, i, j) == 1 && check_preference(id_awal, k, l) == 1) {
-                            schedule[i][j] = id_pengganti;
-                            schedule[k][l] = id_awal;
-                            alternatif_found = 1;
-                            }
-                            break;
-                        }
-                    }
-                    if (schedule[i][j] != id_awal) {
-                        break;
-                    }
-                }
-
-                if (alternatif_found == 0) {
-                    printf("Tabrakan njir");
-                }
+    // cek tabrakan
+    for (int i = 0; i < 30; i ++) {
+        for (int j = 0; j < 3; j ++) {
+            if (check_preference(schedule[i][j], i%7,j) == 0) {
+                printf("Nabrak Njir\n");
             }
         }
     }
     
     // Hari  : Baris
     // Shift : kolom
-    printing_matriks(7,3,schedule);
+    printing_matriks(30,3,schedule);
     
 
     return 0;
