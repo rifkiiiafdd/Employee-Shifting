@@ -20,8 +20,8 @@ typedef  struct Doctor {
     struct Doctor *next;
 } Doctor;
 
-Doctor *head = NULL;
 Doctor* data[10];
+
 
 void printing_matriks(int baris, int kolom, int matriks[baris][kolom]) 
 {
@@ -89,6 +89,15 @@ int main() {
         {1,1,1},
         {1,1,1},
     };
+    int preference1[7][3] = {
+        {1,1,1},
+        {1,1,1},
+        {0,0,1},
+        {1,1,1},   
+        {1,1,1},
+        {1,1,1},
+        {1,1,1},
+    };
     int preference2[7][3] = {
         {1,1,1},
         {1,1,1},
@@ -99,11 +108,12 @@ int main() {
         {1,1,1},
     };
 
-    add(1, "Dummy", 18, preference2);
-    add(2, "Rena", 3, preference);
-    // add(3, "Levi", 5, preference);
-    // add(4, "Sinta", 5, preference);
-    // add(5, "Evelyn", 5, preference);
+    // Data dokter
+    add(1, "Dummy", 7, preference2);
+    add(2, "Rena", 6, preference1);
+    add(3, "Levi", 5, preference);
+    add(4, "Sinta", 5, preference1);
+    add(5, "Evelyn", 5, preference2);
 
 
     // array inizialitation
@@ -140,14 +150,14 @@ int main() {
         }
     }
 
-    
-
     // program penukar jadwal
     int id_awal, id_pengganti;
+    int alternatif_found;
     for (int i = 0; i < 7; i++) {
         for (int j = 0; j < 3; j++) {
             id_awal = schedule[i][j];
             if (check_preference(id_awal, i, j) == 0) {
+                alternatif_found = 0;
                 for (int k = 0; k < 7; k++) {
                     for (int l = 0; l < 3; l++) {
                         id_pengganti =  schedule[k][l];
@@ -156,6 +166,7 @@ int main() {
                             if (check_preference(id_pengganti, i, j) == 1 && check_preference(id_awal, k, l) == 1) {
                             schedule[i][j] = id_pengganti;
                             schedule[k][l] = id_awal;
+                            alternatif_found = 1;
                             }
                             break;
                         }
@@ -164,10 +175,16 @@ int main() {
                         break;
                     }
                 }
+
+                if (alternatif_found == 0) {
+                    printf("Tabrakan njir");
+                }
             }
         }
     }
     
+    // Hari  : Baris
+    // Shift : kolom
     printing_matriks(7,3,schedule);
     
 
