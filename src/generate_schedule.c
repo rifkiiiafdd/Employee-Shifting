@@ -14,7 +14,7 @@ int number_doctor = 0;
 typedef  struct Doctor {
     // Penyimpanan data dokter
     int id;
-    char name[20];
+    char name[20];  
     int max_shift_per_week;
     int shift_scheduled_per_week[5];
     int preference[7][3];
@@ -148,7 +148,7 @@ int preference2[7][3] = {
     {0, 0, 0},
     {1, 1, 1},
     {1, 1, 1},
-    {1, 1, 1}
+    {1, 1, 0}
 };
 
 int preference3[7][3] = {
