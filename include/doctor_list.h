@@ -1,7 +1,10 @@
 #ifndef DOCTOR_LIST_H
 #define DOCTOR_LIST_H
 
-#include <stdbool.h> // For boolean type
+#include <stdbool.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 
 // Define constants for array sizes
 #define MAX_NAME_LENGTH 50
@@ -23,104 +26,14 @@ typedef enum {
     SATURDAY = 6
 } DayOfWeek;
 
-// Structure for a Doctor
 typedef struct Doctor {
-        int id;                     // Unique identifier for the doctor
-        char name[MAX_NAME_LENGTH]; // Doctor's name
-        int max_shifts_per_week;    // Maximum shifts allowed per week
-        int shifts_scheduled_per_week[NUM_WEEKS]; // Shifts scheduled for each
-                                                  // of the 5 weeks
-        // Preference matrix: [DayOfWeek][ShiftType]
-        // 0: Cannot do this shift (blacklisted), 1: Can do this shift
+        int id;
+        char name[MAX_NAME_LENGTH];
+        int max_shifts_per_week;
+        int shifts_scheduled_per_week[NUM_WEEKS];
+
         int preference[NUM_DAYS_PER_WEEK][NUM_SHIFTS_PER_DAY];
-        struct Doctor *next; // Pointer to the next doctor in the linked list
+        struct Doctor *next;
 } Doctor;
 
-// Declare the head of the linked list as extern so other files can access it
-extern Doctor *head;
-
-// Function prototypes
-/**
- * @brief Creates a new Doctor node.
- *
- * @param name The name of the doctor.
- * @param max_shifts The maximum shifts per week.
- * @return A pointer to the newly created Doctor node, or NULL if memory
- * allocation fails.
- */
-Doctor *createDoctor(const char *name, int max_shifts);
-
-/**
- * @brief Adds a new doctor to the linked list.
- *
- * @param name The name of the doctor.
- * @param max_shifts The maximum shifts per week.
- */
-void addDoctor(const char *name, int max_shifts);
-
-/**
- * @brief Refreshes the IDs of all doctors in the linked list to be sequential
- * starting from 1. This function also updates the global next_doctor_id to
- * reflect the new highest ID + 1.
- */
-void refreshDoctorIDs();
-
-/**
- * @brief Removes a doctor from the linked list by ID.
- * After removal, it calls refreshDoctorIDs to re-sequence the IDs.
- *
- * @param id The ID of the doctor to remove.
- */
-void removeDoctor(int id);
-
-/**
- * @brief Finds a doctor in the linked list by ID.
- *
- * @param id The ID of the doctor to find.
- * @return A pointer to the Doctor node if found, otherwise NULL.
- */
-Doctor *findDoctorById(int id);
-
-/**
- * @brief Finds a doctor in the linked list by Name.
- *
- * @param name The name of the doctor to find.
- * @return A pointer to the Doctor node if found, otherwise NULL.
- */
-Doctor *findDoctorByName(char name[]);
-
-/**
- * @brief Displays all doctors in the linked list to stdout (terminal).
- */
-void displayDoctors();
-
-/**
- * @brief Generates a formatted string of blacklisted preferences for a given
- * doctor. The caller is responsible for freeing the returned string using
- * g_free().
- *
- * @param doctor A pointer to the Doctor whose preferences are to be summarized.
- * @return A dynamically allocated string containing the blacklisted
- * preferences, or an empty string if none.
- */
-char *get_blacklisted_preferences_string(Doctor *doctor);
-
-/**
- * @brief Sets a specific preference for a doctor (0 for cannot, 1 for can).
- * This implements the "black list" system where you set 0 for unavailable.
- *
- * @param doctor_id The ID of the doctor to update.
- * @param day The day of the week (0=Sunday, 1=Monday, ..., 6=Saturday).
- * @param shift The shift type (0=Morning, 1=Afternoon, 2=Night).
- * @param can_do A boolean value (0 or 1) indicating if the doctor can do the
- * shift.
- */
-void setDoctorPreference(int doctor_id, DayOfWeek day, ShiftType shift,
-                         int can_do);
-
-/**
- * @brief Frees all memory allocated for the linked list.
- */
-void freeDoctorList();
-
-#endif // DOCTOR_LIST_H
+#endif // !DOCTOR_LIST_H
