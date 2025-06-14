@@ -12,12 +12,10 @@
 #define NUM_DAYS_PER_WEEK 7
 #define NUM_SHIFTS_PER_DAY 3 // 0: Morning, 1: Afternoon, 2: Night
 
-// Enum for shift types for better readability
 typedef enum { MORNING = 0, AFTERNOON = 1, NIGHT = 2 } ShiftType;
 
-// Enum for days of the week
 typedef enum {
-    SUNDAY = 0, // Assuming Sunday is the start of the week for array indexing
+    SUNDAY = 0,
     MONDAY = 1,
     TUESDAY = 2,
     WEDNESDAY = 3,
@@ -31,9 +29,20 @@ typedef struct Doctor {
         char name[MAX_NAME_LENGTH];
         int max_shifts_per_week;
         int shifts_scheduled_per_week[NUM_WEEKS];
-
         int preference[NUM_DAYS_PER_WEEK][NUM_SHIFTS_PER_DAY];
         struct Doctor *next;
 } Doctor;
 
-#endif // !DOCTOR_LIST_H
+extern Doctor *head;
+
+void addDoctor(const char *name, int max_shifts_per_week);
+void removeDoctor(int id);
+void displayDoctors();
+void setDoctorPreference(int doctor_id, DayOfWeek day, ShiftType shift,
+                         int can_do);
+void freeDoctorList();
+Doctor *findDoctorById(int id);
+Doctor *findDoctorByName(const char *name);
+void updateDoctor(int id, const char *new_name, int new_max_shifts);
+
+#endif // DOCTOR_LIST_H

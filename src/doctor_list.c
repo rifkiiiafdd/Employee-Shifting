@@ -172,3 +172,33 @@ Doctor *findDoctorById(int id) {
     }
     return NULL; // Doctor not found
 }
+
+Doctor *findDoctorByName(const char *name) {
+    Doctor *current = head;
+    while (current != NULL) {
+        if (strcmp(current->name, name) == 0) {
+            return current;
+        }
+        current = current->next;
+    }
+    return NULL; // Doctor not found
+}
+
+void updateDoctor(int id, const char *new_name, int new_max_shifts) {
+    Doctor *doctor_to_update = findDoctorById(id);
+    if (doctor_to_update != NULL) {
+        strncpy(doctor_to_update->name, new_name, MAX_NAME_LENGTH - 1);
+        doctor_to_update->name[MAX_NAME_LENGTH - 1] =
+            '\0'; // Ensure null-termination
+
+        if (new_max_shifts > 0) {
+            doctor_to_update->max_shifts_per_week = new_max_shifts;
+        } else {
+            printf("Warning: Invalid max shifts value (%d). Retaining original "
+                   "value.\n",
+                   new_max_shifts);
+        }
+    } else {
+        printf("Error: Could not find doctor with ID %d to update.\n", id);
+    }
+}
