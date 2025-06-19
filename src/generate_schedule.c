@@ -122,100 +122,9 @@ int check_preference(int id, int day, int shift) {
 }
 
 
-int main() {
-    srand(time(NULL)); // membuat output fungsi rng benar benar random meskipun dijalankan berulang kali pada suatu iterasi
+void generate_schedule (int schedule[30][3]) {
 
-    /*
-    data preferensi dokter
-    jika 0 berarti tidak bisa pada shift tersebut, jika 1 bisa
-    baris adalah hari ke-..
-    kolom adalah shift ke-...
-    */
-    int preference1[7][3] = {
-    {1, 1, 1},
-    {0, 0, 0},
-    {1, 1, 1},
-    {1, 1, 1},
-    {1, 1, 1},
-    {1, 1, 1},
-    {1, 1, 0}
-};
-
-int preference2[7][3] = {
-    {1, 1, 1},
-    {1, 1, 1},
-    {0, 1, 1},
-    {0, 0, 0},
-    {1, 1, 1},
-    {1, 1, 1},
-    {1, 1, 0}
-};
-
-int preference3[7][3] = {
-    {0, 1, 1},
-    {1, 1, 1},
-    {1, 1, 1},
-    {1, 1, 1},
-    {1, 1, 1},
-    {1, 1, 0},
-    {0, 0, 0}
-};
-
-int preference4[7][3] = {
-    {0, 0, 0},
-    {0, 0, 0},
-    {0, 0, 0},
-    {1, 0, 0},
-    {0, 1, 0},
-    {0, 0, 1},
-    {0, 0, 0}
-};
-
-int preference5[7][3] = {
-    {0, 0, 0},
-    {0, 0, 0},
-    {0, 0, 0},
-    {0, 0, 0},
-    {1, 0, 0},
-    {0, 1, 0},
-    {0, 0, 1}
-};
-
-int preference6[7][3] = {
-    {0, 0, 1},
-    {0, 0, 0},
-    {0, 0, 0},
-    {0, 0, 0},
-    {0, 0, 0},
-    {1, 0, 0},
-    {0, 1, 0}
-};
-
-int preference7[7][3] = {
-    {0, 1, 0},
-    {0, 0, 1},
-    {0, 0, 0},
-    {0, 0, 0},
-    {0, 0, 0},
-    {0, 0, 0},
-    {1, 0, 0}
-};
-
-
-
-    // Data dokter
-    add(1, "Doni", 6, preference1);
-    add(2, "Rena", 5, preference2);
-    add(3, "Levi", 4, preference3);
-    add(4, "Alvi", 4, preference2);
-    add(5, "Vely", 5, preference3);
-
-
-    // inisialisasi matriks berdimensi 30 x 3 yang meyimpan id dokter yang bertugas pada shift tersebut
-    // baris : tanggal
-    // kolom : sesi
-    int schedule[30][3] ={0};
-
+    
     int random_doctor, id_doctor;
 
     
@@ -341,10 +250,11 @@ int preference7[7][3] = {
     }
 
     // mencetak data
-    printing_matriks(30,3,schedule);
-    printf("\n");
+    
 
+}
 
+void view_conflict() {
     // menampilkan tabrakan preferensi dokter
     conflict *temp = head;
     while (temp != NULL) {
@@ -352,6 +262,109 @@ int preference7[7][3] = {
         printf("Hari : %d Shift : %d\n\n", temp->hari, temp->shift);
         temp = temp->next;
     }
-    
+}
+
+
+int main() {
+    srand(time(NULL)); // membuat output fungsi rng benar benar random meskipun dijalankan berulang kali pada suatu iterasi
+
+    /*
+    data preferensi dokter
+    jika 0 berarti tidak bisa pada shift tersebut, jika 1 bisa
+    baris adalah hari ke-..
+    kolom adalah shift ke-...
+    */
+    int preference1[7][3] = {
+    {1, 1, 1},
+    {0, 0, 0},
+    {1, 1, 1},
+    {1, 1, 1},
+    {1, 1, 1},
+    {1, 1, 1},
+    {1, 1, 0}
+};
+
+int preference2[7][3] = {
+    {1, 1, 1},
+    {1, 1, 1},
+    {0, 1, 1},
+    {0, 0, 0},
+    {1, 1, 1},
+    {1, 1, 1},
+    {1, 1, 0}
+};
+
+int preference3[7][3] = {
+    {0, 1, 1},
+    {1, 1, 1},
+    {1, 1, 1},
+    {1, 1, 1},
+    {1, 1, 1},
+    {1, 1, 0},
+    {0, 0, 0}
+};
+
+int preference4[7][3] = {
+    {0, 0, 0},
+    {0, 0, 0},
+    {0, 0, 0},
+    {1, 0, 0},
+    {0, 1, 0},
+    {0, 0, 1},
+    {0, 0, 1}
+};
+
+int preference5[7][3] = {
+    {0, 0, 0},
+    {0, 0, 0},
+    {0, 0, 0},
+    {0, 0, 0},
+    {1, 0, 0},
+    {0, 1, 0},
+    {0, 0, 1}
+};
+
+int preference6[7][3] = {
+    {0, 0, 1},
+    {0, 0, 0},
+    {0, 0, 0},
+    {0, 0, 0},
+    {0, 0, 0},
+    {1, 0, 0},
+    {0, 1, 0}
+};
+
+int preference7[7][3] = {
+    {0, 1, 0},
+    {0, 0, 1},
+    {0, 0, 0},
+    {0, 0, 0},
+    {0, 0, 0},
+    {0, 0, 0},
+    {1, 0, 1}
+};
+
+
+
+    // Data dokter
+    add(1, "Doni", 6, preference1);
+    add(2, "Rena", 5, preference2);
+    add(3, "Levi", 4, preference3);
+    add(4, "Alvi", 4, preference2);
+    add(5, "Vely", 5, preference3);
+
+
+    // inisialisasi matriks berdimensi 30 x 3 yang meyimpan id dokter yang bertugas pada shift tersebut
+    // baris : tanggal
+    // kolom : sesi
+    int schedule[30][3] ={0};
+
+    // Menjalankan fungsi pembuatan jadwal
+    generate_schedule(schedule);
+
+    printing_matriks(30,3,schedule);
+
+    view_conflict();
+
     return 0;
 }
