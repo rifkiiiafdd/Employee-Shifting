@@ -37,8 +37,6 @@ typedef struct Doctor {
 
 // --- Global Variable Declarations ---
 extern Doctor *head;
-// The main schedule database. Each cell holds a single doctor's ID. 0 =
-// unassigned.
 extern int schedule[NUM_WEEKS][NUM_DAYS_PER_WEEK][NUM_SHIFTS_PER_DAY];
 
 // --- Function Declarations ---

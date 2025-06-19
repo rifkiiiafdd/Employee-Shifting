@@ -6,14 +6,8 @@
 // --- Global Variable Definitions ---
 Doctor *head = NULL;
 int next_doctor_id = 1;
-// Definition of the global schedule array
 int schedule[NUM_WEEKS][NUM_DAYS_PER_WEEK][NUM_SHIFTS_PER_DAY];
 
-// --- Function Implementations ---
-
-/**
- * @brief Initializes the schedule array to all zeros (unassigned).
- */
 void initialize_schedule() {
     for (int w = 0; w < NUM_WEEKS; w++) {
         for (int d = 0; d < NUM_DAYS_PER_WEEK; d++) {
