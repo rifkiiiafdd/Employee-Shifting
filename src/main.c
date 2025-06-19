@@ -1,24 +1,34 @@
+#include "csv_utils.h"
 #include "doctor_list.h"
 #include <ctype.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/stat.h>
+#include <sys/types.h>
 
-// --- Forward Declarations for Menu and Helper Functions ---
+#ifdef _WIN32
+#include <direct.h>
+#endif
+
 void display_main_menu();
 void handle_add_doctor();
 void handle_edit_doctor();
 void handle_remove_doctor();
-void handle_set_preferences(int doctor_id); // Now takes an ID
+void handle_set_preferences(int doctor_id);
+void handle_load_data();
+void handle_save_data();
+bool create_directory_if_not_exists(const char *path);
 void clear_input_buffer();
 int get_integer_input();
 void get_string_input(char *buffer, int size);
 
 int main() {
     int choice = 0;
+    initialize_schedule();
     printf("--- Doctor Scheduling CLI ---\n");
 
-    while (choice != 5) {
+    while (choice != 7) {
         display_main_menu();
         choice = get_integer_input();
 
@@ -36,15 +46,20 @@ int main() {
             handle_remove_doctor();
             break;
         case 5:
+            handle_load_data();
+            break;
+        case 6:
+            handle_save_data();
+            break;
+        case 7:
             printf("Exiting program. Freeing memory...\n");
-            break; // Exit the loop
+            break;
         default:
             printf("\n*** Invalid choice. Please enter a number between 1 and "
-                   "5. ***\n");
+                   "7. ***\n");
             break;
         }
-        // Pause for user to see output before clearing screen
-        if (choice != 5) {
+        if (choice != 7) {
             printf("\nPress Enter to continue...");
             clear_input_buffer();
         }
@@ -54,9 +69,6 @@ int main() {
     return 0;
 }
 
-/**
- * @brief Displays the main menu options to the console.
- */
 void display_main_menu() {
 #ifdef _WIN32
     system("cls");
@@ -68,15 +80,104 @@ void display_main_menu() {
     printf("2. Add New Doctor\n");
     printf("3. Edit Doctor Information\n");
     printf("4. Remove Doctor\n");
-    printf("5. Exit\n");
+    printf("5. Load Data from Directory\n");
+    printf("6. Save Data to Directory\n");
+    printf("7. Exit\n");
     printf("----------------------------------\n");
     printf("Enter your choice: ");
 }
 
-/**
- * @brief Handles the user workflow for adding a new doctor and setting their
- * initial preferences.
- */
+void handle_load_data() {
+    char dir_path[256];
+    char doc_path[512];
+    char sched_path[512];
+
+    printf("\n--- Load Data ---\n");
+    printf("Enter the directory path to load data from (e.g., data): ");
+    get_string_input(dir_path, sizeof(dir_path));
+
+    snprintf(doc_path, sizeof(doc_path), "%s/doctors.csv", dir_path);
+    snprintf(sched_path, sizeof(sched_path), "%s/schedule.csv", dir_path);
+
+    printf("Loading doctors from %s...\n", doc_path);
+    if (load_doctors_from_csv(doc_path)) {
+        printf("Doctor list loaded successfully.\n");
+    } else {
+        printf("Could not load doctor list. The file may not exist yet.\n");
+    }
+
+    printf("Loading schedule from %s...\n", sched_path);
+    if (load_schedule_from_csv(sched_path)) {
+        printf("Schedule loaded successfully.\n");
+    } else {
+        printf("Could not load schedule. The file may not exist yet.\n");
+    }
+}
+
+void handle_save_data() {
+    char dir_path[256];
+    char doc_path[512];
+    char sched_path[512];
+
+    printf("\n--- Save Data ---\n");
+    printf("Enter the directory path to save data to (e.g., data): ");
+    get_string_input(dir_path, sizeof(dir_path));
+
+    if (!create_directory_if_not_exists(dir_path)) {
+        return; // User cancelled or creation failed
+    }
+
+    snprintf(doc_path, sizeof(doc_path), "%s/doctors.csv", dir_path);
+    snprintf(sched_path, sizeof(sched_path), "%s/schedule.csv", dir_path);
+
+    printf("Saving doctors to %s...\n", doc_path);
+    if (save_doctors_to_csv(doc_path)) {
+        printf("Doctor list saved successfully.\n");
+    } else {
+        printf("Failed to save doctor list.\n");
+    }
+
+    printf("Saving schedule to %s...\n", sched_path);
+    if (save_schedule_to_csv(sched_path)) {
+        printf("Schedule saved successfully.\n");
+    } else {
+        printf("Failed to save schedule.\n");
+    }
+}
+
+bool create_directory_if_not_exists(const char *path) {
+    struct stat st = {0};
+
+    // Check if directory exists
+    if (stat(path, &st) == -1) {
+        char choice;
+        printf("Directory '%s' does not exist. Create it? (y/n): ", path);
+        choice = getchar();
+        clear_input_buffer();
+
+        if (tolower(choice) == 'y') {
+            int result;
+#ifdef _WIN32
+            result = _mkdir(path);
+#else
+            // mkdir with 0777 gives read/write/execute permissions to everyone
+            result = mkdir(path, 0777);
+#endif
+            if (result == 0) {
+                printf("Directory created successfully.\n");
+                return true;
+            } else {
+                perror("Failed to create directory");
+                return false;
+            }
+        } else {
+            printf("Save operation cancelled.\n");
+            return false;
+        }
+    }
+    return true; // Directory already exists
+}
+
 void handle_add_doctor() {
     char name[MAX_NAME_LENGTH];
     int max_shifts;
@@ -90,21 +191,15 @@ void handle_add_doctor() {
 
     if (strlen(name) > 0 && max_shifts > 0) {
         addDoctor(name, max_shifts);
-        // Automatically proceed to set preferences for the new doctor
         Doctor *new_doctor = findDoctorByName(name);
         if (new_doctor) {
             handle_set_preferences(new_doctor->id);
         }
     } else {
-        printf("\n*** Invalid input. Name cannot be empty and max shifts must "
-               "be positive. ***\n");
+        printf("\n*** Invalid input. ***\n");
     }
 }
 
-/**
- * @brief Handles the user workflow for editing an existing doctor's details,
- * including their shift preferences.
- */
 void handle_edit_doctor() {
     if (!head) {
         printf("\n*** No doctors in the list to edit. ***\n");
@@ -128,7 +223,6 @@ void handle_edit_doctor() {
                doctor->max_shifts_per_week);
         new_max_shifts = get_integer_input();
 
-        // If the user just pressed enter for the name, keep the old name
         if (strlen(new_name) == 0) {
             strcpy(new_name, doctor->name);
         }
@@ -136,26 +230,20 @@ void handle_edit_doctor() {
         updateDoctor(id, new_name, new_max_shifts);
         printf("Doctor information updated.\n");
 
-        // --- NEW: Ask to edit preferences ---
         char edit_prefs_choice;
         printf("\nDo you want to edit the preferences for Dr. %s? (y/n): ",
                new_name);
         edit_prefs_choice = getchar();
-        clear_input_buffer(); // Clear buffer after reading a single character
+        clear_input_buffer();
 
         if (tolower(edit_prefs_choice) == 'y') {
             handle_set_preferences(id);
         }
-        // --- End of new feature ---
-
     } else {
         printf("\n*** Doctor with ID %d not found. ***\n", id);
     }
 }
 
-/**
- * @brief Handles the user workflow for removing a doctor from the list.
- */
 void handle_remove_doctor() {
     if (!head) {
         printf("\n*** No doctors in the list to remove. ***\n");
@@ -184,11 +272,6 @@ void handle_remove_doctor() {
     }
 }
 
-/**
- * @brief Manages the interactive sub-menu for setting a doctor's shift
- * preferences.
- * @param doctor_id The ID of the doctor whose preferences are being set.
- */
 void handle_set_preferences(int doctor_id) {
     Doctor *doctor = findDoctorById(doctor_id);
     if (!doctor) {
@@ -198,7 +281,6 @@ void handle_set_preferences(int doctor_id) {
 
     printf("\n--- Setting Preferences for Dr. %s ---\n", doctor->name);
     printf("Enter availability for each shift (1 for YES, 0 for NO).\n");
-    printf("You can enter preferences for multiple shifts.\n");
     printf("Enter -1 for the day to finish.\n\n");
 
     while (1) {
@@ -206,9 +288,8 @@ void handle_set_preferences(int doctor_id) {
         printf("Enter Day (0=Sun, 1=Mon, ..., 6=Sat, -1=Done): ");
         day = get_integer_input();
 
-        if (day == -1) {
+        if (day == -1)
             break;
-        }
 
         if (day < 0 || day >= NUM_DAYS_PER_WEEK) {
             printf("*** Invalid day. Please try again. ***\n");
@@ -223,50 +304,34 @@ void handle_set_preferences(int doctor_id) {
             continue;
         }
 
-        printf("Is the doctor available for this shift? (1=Yes, 0=No): ");
+        printf("Is the doctor available? (1=Yes, 0=No): ");
         can_do = get_integer_input();
 
         if (can_do == 0 || can_do == 1) {
             setDoctorPreference(doctor_id, (DayOfWeek)day, (ShiftType)shift,
                                 can_do);
         } else {
-            printf("*** Invalid availability. Please enter 0 or 1. ***\n");
+            printf("*** Invalid availability. ***\n");
         }
     }
-    printf("\n--- Preferences for Dr. %s have been set. ---\n", doctor->name);
 }
 
-/**
- * @brief Clears the standard input buffer of any remaining characters.
- * This is crucial after reading a number or char to consume the leftover
- * newline.
- */
 void clear_input_buffer() {
     int c;
     while ((c = getchar()) != '\n' && c != EOF)
         ;
 }
 
-/**
- * @brief Safely reads an integer from standard input.
- * @return The integer value entered by the user.
- */
 int get_integer_input() {
     char buffer[100];
     if (fgets(buffer, sizeof(buffer), stdin) != NULL) {
         return atoi(buffer);
     }
-    return -1; // Return an error code if input fails
+    return -1;
 }
 
-/**
- * @brief Safely reads a line of text from standard input.
- * @param buffer The buffer to store the read string.
- * @param size The size of the buffer.
- */
 void get_string_input(char *buffer, int size) {
     if (fgets(buffer, size, stdin) != NULL) {
-        // Remove trailing newline character
         buffer[strcspn(buffer, "\n")] = '\0';
     }
 }

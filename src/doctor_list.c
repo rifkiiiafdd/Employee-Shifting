@@ -1,18 +1,39 @@
 #include "doctor_list.h"
+#include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
+// --- Global Variable Definitions ---
 Doctor *head = NULL;
 int next_doctor_id = 1;
+// Definition of the global schedule array
+int schedule[NUM_WEEKS][NUM_DAYS_PER_WEEK][NUM_SHIFTS_PER_DAY];
+
+// --- Function Implementations ---
+
+/**
+ * @brief Initializes the schedule array to all zeros (unassigned).
+ */
+void initialize_schedule() {
+    for (int w = 0; w < NUM_WEEKS; w++) {
+        for (int d = 0; d < NUM_DAYS_PER_WEEK; d++) {
+            for (int s = 0; s < NUM_SHIFTS_PER_DAY; s++) {
+                schedule[w][d][s] = 0;
+            }
+        }
+    }
+}
 
 Doctor *createDoctor(const char *name, int max_shifts_per_week) {
     Doctor *newDoctor = (Doctor *)malloc(sizeof(Doctor));
     if (newDoctor == NULL) {
-        printf("Memorry allocation failed for new doctor.\n");
+        printf("Memory allocation failed for new doctor.\n");
         return NULL;
     }
 
     newDoctor->id = next_doctor_id++;
-    strncpy(newDoctor->name, name, MAX_NAME_LENGTH);
+    strncpy(newDoctor->name, name, MAX_NAME_LENGTH - 1);
+    newDoctor->name[MAX_NAME_LENGTH - 1] = '\0';
     newDoctor->max_shifts_per_week = max_shifts_per_week;
 
     for (int i = 0; i < NUM_WEEKS; i++) {
@@ -54,13 +75,17 @@ void refreshDoctorID() {
         return;
     }
 
+    int max_id = 0;
     Doctor *current = head;
-    int current_id = 1;
     while (current != NULL) {
-        current->id = current_id++;
+        if (current->id > max_id) {
+            max_id = current->id;
+        }
         current = current->next;
     }
-    printf("Doctor IDs refreshed successfully.\n");
+    next_doctor_id = max_id + 1;
+    printf("Doctor ID system refreshed. Next available ID: %d\n",
+           next_doctor_id);
 }
 
 void removeDoctor(int id) {
@@ -83,45 +108,27 @@ void removeDoctor(int id) {
         prev->next = current->next;
     }
 
-    printf("Doctor '%s' (ID: %d) remove successfully.\n", current->name, id);
+    printf("Doctor '%s' (ID: %d) removed successfully.\n", current->name, id);
     free(current);
     refreshDoctorID();
 }
 
 void displayDoctors() {
     if (head == NULL) {
-        printf("No doctors in the list.\n");
+        printf("\n*** No doctors in the list. ***\n");
         return;
     }
 
-    printf("\n--- Doctor List (Terminal Output) ---\n");
+    printf("\n--- Doctor List ---\n");
+    printf("%-5s %-25s %-15s\n", "ID", "Name", "Max Shifts/Wk");
+    printf("--------------------------------------------------\n");
     Doctor *current = head;
     while (current != NULL) {
-        printf("ID: %d, Name: %s, Max Shifts/Week: %d\n", current->id,
-               current->name, current->max_shifts_per_week);
-
-        // Display shifts scheduled per week
-        printf("  Shifts Scheduled (per week): ");
-        for (int i = 0; i < NUM_WEEKS; i++) {
-            printf("Week %d: %d ", i + 1,
-                   current->shifts_scheduled_per_week[i]);
-        }
-        printf("\n");
-
-        // Display preferences
-        printf("  Preferences (0=cannot, 1=can):\n");
-        const char *days[] = {"Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"};
-        const char *shifts[] = {"Morning", "Afternoon", "Night"};
-        for (int i = 0; i < NUM_DAYS_PER_WEEK; i++) {
-            printf("    %s: ", days[i]);
-            for (int j = 0; j < NUM_SHIFTS_PER_DAY; j++) {
-                printf("%s: %d ", shifts[j], current->preference[i][j]);
-            }
-            printf("\n");
-        }
-        printf("---------------------\n");
+        printf("%-5d %-25s %-15d\n", current->id, current->name,
+               current->max_shifts_per_week);
         current = current->next;
     }
+    printf("--------------------------------------------------\n");
 }
 
 void setDoctorPreference(int doctor_id, DayOfWeek day, ShiftType shift,
@@ -132,22 +139,14 @@ void setDoctorPreference(int doctor_id, DayOfWeek day, ShiftType shift,
         return;
     }
 
-    Doctor *current = head;
-    while (current != NULL && current->id != doctor_id) {
-        current = current->next;
-    }
-
+    Doctor *current = findDoctorById(doctor_id);
     if (current == NULL) {
         printf("Doctor with ID %d not found to set preference.\n", doctor_id);
         return;
     }
 
     current->preference[day][shift] = can_do;
-    printf("Preference for Doctor %s (ID: %d) on %s %s set to %d.\n",
-           current->name, current->id,
-           (char *[]){"Sunday", "Monday", "Tuesday", "Wednesday", "Thursday",
-                      "Friday", "Saturday"}[day],
-           (char *[]){"Morning", "Afternoon", "Night"}[shift], can_do);
+    printf("Preference for Doctor %s updated.\n", current->name);
 }
 
 void freeDoctorList() {
@@ -158,7 +157,7 @@ void freeDoctorList() {
         free(current);
         current = next_node;
     }
-    head = NULL; // Reset head to NULL after freeing all nodes
+    head = NULL;
     printf("All doctor data freed from memory.\n");
 }
 
@@ -170,7 +169,7 @@ Doctor *findDoctorById(int id) {
         }
         current = current->next;
     }
-    return NULL; // Doctor not found
+    return NULL;
 }
 
 Doctor *findDoctorByName(const char *name) {
@@ -181,22 +180,21 @@ Doctor *findDoctorByName(const char *name) {
         }
         current = current->next;
     }
-    return NULL; // Doctor not found
+    return NULL;
 }
 
 void updateDoctor(int id, const char *new_name, int new_max_shifts) {
     Doctor *doctor_to_update = findDoctorById(id);
     if (doctor_to_update != NULL) {
         strncpy(doctor_to_update->name, new_name, MAX_NAME_LENGTH - 1);
-        doctor_to_update->name[MAX_NAME_LENGTH - 1] =
-            '\0'; // Ensure null-termination
+        doctor_to_update->name[MAX_NAME_LENGTH - 1] = '\0';
 
         if (new_max_shifts > 0) {
             doctor_to_update->max_shifts_per_week = new_max_shifts;
         } else {
-            printf("Warning: Invalid max shifts value (%d). Retaining original "
-                   "value.\n",
-                   new_max_shifts);
+            printf(
+                "Warning: Invalid max shifts value (%d). Retaining original.\n",
+                new_max_shifts);
         }
     } else {
         printf("Error: Could not find doctor with ID %d to update.\n", id);

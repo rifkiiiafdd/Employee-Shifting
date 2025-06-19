@@ -12,16 +12,18 @@
 #define NUM_DAYS_PER_WEEK 7
 #define NUM_SHIFTS_PER_DAY 3 // 0: Morning, 1: Afternoon, 2: Night
 
+// Enum for shift types
 typedef enum { MORNING = 0, AFTERNOON = 1, NIGHT = 2 } ShiftType;
 
+// Enum for days of the week
 typedef enum {
     SUNDAY = 0,
-    MONDAY = 1,
-    TUESDAY = 2,
-    WEDNESDAY = 3,
-    THURSDAY = 4,
-    FRIDAY = 5,
-    SATURDAY = 6
+    MONDAY,
+    TUESDAY,
+    WEDNESDAY,
+    THURSDAY,
+    FRIDAY,
+    SATURDAY
 } DayOfWeek;
 
 typedef struct Doctor {
@@ -33,8 +35,13 @@ typedef struct Doctor {
         struct Doctor *next;
 } Doctor;
 
+// --- Global Variable Declarations ---
 extern Doctor *head;
+// The main schedule database. Each cell holds a single doctor's ID. 0 =
+// unassigned.
+extern int schedule[NUM_WEEKS][NUM_DAYS_PER_WEEK][NUM_SHIFTS_PER_DAY];
 
+// --- Function Declarations ---
 void addDoctor(const char *name, int max_shifts_per_week);
 void removeDoctor(int id);
 void displayDoctors();
@@ -44,5 +51,7 @@ void freeDoctorList();
 Doctor *findDoctorById(int id);
 Doctor *findDoctorByName(const char *name);
 void updateDoctor(int id, const char *new_name, int new_max_shifts);
+void refreshDoctorID();
+void initialize_schedule();
 
 #endif // DOCTOR_LIST_H
