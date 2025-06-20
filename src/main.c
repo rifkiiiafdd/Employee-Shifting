@@ -1,3 +1,6 @@
+// TEMPORARY MAIN UNTUK CLI
+// Fungsi Handler memang agak ribet, mau disimplifikasi lagi nanti
+
 #include "csv_utils.h"
 #include "doctor_list.h"
 #include <ctype.h>
@@ -7,7 +10,7 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 
-// CLS/CLEAR untuk OS spesifik
+// CLS/Clear screen utk spesifik OS
 #ifdef _WIN32
 #include <direct.h>
 #define MKDIR(path) _mkdir(path)
@@ -17,8 +20,7 @@
 #define CLEAR_SCREEN "clear"
 #endif
 
-// Protoype fungsi Handling Main
-void display_main_menu();
+// Prototype fungsi
 void handle_add_doctor();
 void handle_edit_doctor();
 void handle_remove_doctor();
@@ -29,74 +31,65 @@ bool create_directory_if_not_exists(const char *path);
 void clear_input_buffer();
 int get_integer_input();
 void get_string_input(char *buffer, int size);
+void run_cli_app();
 
-// Main
-int main() {
-    int choice = 0;
+int main(int argc, char *argv[]) {
     initialize_schedule();
-    printf("--- Doctor Scheduling CLI ---\n");
-    printf("Press Enter to start...");
-    clear_input_buffer();
+    run_cli_app();
 
-    while (choice != 7) {
-        display_main_menu();
-        choice = get_integer_input();
-
-        switch (choice) {
-        case 1:
-            displayDoctors();
-            break;
-        case 2:
-            handle_add_doctor();
-            break;
-        case 3:
-            handle_edit_doctor();
-            break;
-        case 4:
-            handle_remove_doctor();
-            break;
-        case 5:
-            handle_load_data();
-            break;
-        case 6:
-            handle_save_data();
-            break;
-        case 7:
-            printf("Exiting program...\n");
-            break;
-        default:
-            printf("\n*** Invalid choice. Please enter a number between 1 and "
-                   "7. ***\n");
-            break;
-        }
-
-        if (choice != 7) {
-            printf("\nPress Enter to continue...");
-            clear_input_buffer();
-        }
-    }
-
+    // Free list dokter sebelum keluar
     freeDoctorList();
     printf("Memory freed. Goodbye!\n");
     return 0;
 }
 
-// Displays the main menu options.
-void display_main_menu() {
-    system(CLEAR_SCREEN);
-    printf("\n--- Doctor Scheduler Main Menu ---\n");
-    printf("1. Display All Doctors\n");
-    printf("2. Add New Doctor\n");
-    printf("3. Edit Doctor Information\n");
-    printf("4. Remove Doctor\n");
-    printf("5. Load Data from Directory\n");
-    printf("6. Save Data to Directory\n");
-    printf("7. Exit\n");
-    printf("----------------------------------\n");
-    printf("Enter your choice: ");
+// Main loop CLI
+void run_cli_app() {
+    // Opsi menu
+    const char *menu_options[] = {"Display All Doctors",
+                                  "Add New Doctor",
+                                  "Edit Doctor Information",
+                                  "Remove Doctor",
+                                  "Load Data from Directory",
+                                  "Save Data to Directory",
+                                  "Exit"};
+    int num_options = sizeof(menu_options) / sizeof(menu_options[0]);
+
+    // Array ke pointer fungsi???? How does this work bro
+    void (*action_handlers[])() = {displayDoctors,     handle_add_doctor,
+                                   handle_edit_doctor, handle_remove_doctor,
+                                   handle_load_data,   handle_save_data};
+
+    int choice = 0;
+    while (choice != num_options) { // Loop sampai exit
+        system(CLEAR_SCREEN);
+        printf("\n--- Doctor Scheduler Main Menu ---\n");
+        for (int i = 0; i < num_options; i++) {
+            printf("%d. %s\n", i + 1, menu_options[i]);
+        }
+        printf("----------------------------------\n");
+        printf("Enter your choice: ");
+
+        choice = get_integer_input();
+
+        // Validasi pilihan dan pemanggilan fungsi menggunakan array of pointer
+        // to function
+        if (choice > 0 && choice < num_options) {
+            action_handlers[choice - 1]();
+        } else if (choice == num_options) {
+            printf("Exiting program...\n");
+        } else {
+            printf("\n*** Invalid choice. Please try again. ***\n");
+        }
+
+        if (choice != num_options) {
+            printf("\nPress Enter to continue...");
+            clear_input_buffer();
+        }
+    }
 }
 
-// Handles loading data from a specified directory.
+// Hanlder load data (dua-duanya)
 void handle_load_data() {
     char dir_path[256];
     char doc_path[512];
@@ -106,8 +99,13 @@ void handle_load_data() {
     printf("Enter directory path to load from (e.g., data): ");
     get_string_input(dir_path, sizeof(dir_path));
 
-    snprintf(doc_path, sizeof(doc_path), "%s/doctors.csv", dir_path);
-    snprintf(sched_path, sizeof(sched_path), "%s/schedule.csv", dir_path);
+    // Full path dari direktori dan nama file list dokter
+    strcpy(doc_path, dir_path);
+    strcat(doc_path, "/doctors.csv");
+
+    // Full path dari direktori dan nama file schedule
+    strcpy(sched_path, dir_path);
+    strcat(sched_path, "/schedule.csv");
 
     printf("Loading doctors from '%s'...\n", doc_path);
     if (load_doctors_from_csv(doc_path)) {
@@ -124,7 +122,7 @@ void handle_load_data() {
     }
 }
 
-// Handles saving data to a specified directory.
+// Handler simpan data (dua-duanya)
 void handle_save_data() {
     char dir_path[256];
     char doc_path[512];
@@ -135,11 +133,16 @@ void handle_save_data() {
     get_string_input(dir_path, sizeof(dir_path));
 
     if (!create_directory_if_not_exists(dir_path)) {
-        return; // User cancelled or creation failed
+        return;
     }
 
-    snprintf(doc_path, sizeof(doc_path), "%s/doctors.csv", dir_path);
-    snprintf(sched_path, sizeof(sched_path), "%s/schedule.csv", dir_path);
+    // Full path dari direktori dan nama file list dokter
+    strcpy(doc_path, dir_path);
+    strcat(doc_path, "/doctors.csv");
+
+    // Full path dari direktori dan nama file schedule
+    strcpy(sched_path, dir_path);
+    strcat(sched_path, "/schedule.csv");
 
     printf("Saving doctors to '%s'...\n", doc_path);
     if (save_doctors_to_csv(doc_path)) {
@@ -156,13 +159,12 @@ void handle_save_data() {
     }
 }
 
-// Creates a directory if it does not already exist.
 bool create_directory_if_not_exists(const char *path) {
     struct stat st = {0};
     if (stat(path, &st) == -1) {
         printf("Directory '%s' does not exist. Create it? (y/n): ", path);
         int choice = getchar();
-        clear_input_buffer(); // Consume the rest of the line
+        clear_input_buffer();
 
         if (tolower(choice) == 'y') {
             if (MKDIR(path) == 0) {
@@ -177,10 +179,10 @@ bool create_directory_if_not_exists(const char *path) {
             return false;
         }
     }
-    return true; // Directory already exists
+    return true;
 }
 
-// Handles the process of adding a new doctor.
+// Handler tambah data dokter
 void handle_add_doctor() {
     char name[MAX_NAME_LENGTH];
     int max_shifts;
@@ -204,7 +206,7 @@ void handle_add_doctor() {
     }
 }
 
-// Handles editing an existing doctor's information.
+// Handler edit data dokter
 void handle_edit_doctor() {
     if (!head) {
         printf("\n*** No doctors in the list to edit. ***\n");
@@ -250,7 +252,7 @@ void handle_edit_doctor() {
     }
 }
 
-// Handles removing a doctor from the list.
+// Handler hapus dokter
 void handle_remove_doctor() {
     if (!head) {
         printf("\n*** No doctors in the list to remove. ***\n");
@@ -279,7 +281,7 @@ void handle_remove_doctor() {
     }
 }
 
-// Handles setting the work preferences for a doctor.
+// Handler preferensi dokter
 void handle_set_preferences(int doctor_id) {
     Doctor *doctor = findDoctorById(doctor_id);
     if (!doctor) {
@@ -323,30 +325,25 @@ void handle_set_preferences(int doctor_id) {
     }
 }
 
-// --- Utility Functions for Input ---
-
-// Clears the standard input buffer.
+// Fungsi input
 void clear_input_buffer() {
     int c;
     while ((c = getchar()) != '\n' && c != EOF)
         ;
 }
 
-// Gets an integer from standard input.
 int get_integer_input() {
     char buffer[100];
     if (fgets(buffer, sizeof(buffer), stdin) != NULL) {
-        // Return -1 if input is empty or just a newline
         if (strlen(buffer) <= 1 && (buffer[0] == '\n' || buffer[0] == '\0'))
             return -1;
         return atoi(buffer);
     }
-    return -1; // Error or EOF
+    return -1;
 }
 
-// Gets a string from standard input.
 void get_string_input(char *buffer, int size) {
     if (fgets(buffer, size, stdin) != NULL) {
-        buffer[strcspn(buffer, "\n")] = '\0'; // Remove trailing newline
+        buffer[strcspn(buffer, "\n")] = '\0';
     }
 }
