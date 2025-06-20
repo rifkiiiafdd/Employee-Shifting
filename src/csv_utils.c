@@ -4,6 +4,9 @@
 #include <stdlib.h>
 #include <string.h>
 
+// Fungsi CSV List Dokter
+
+// Menyimpan data dokter ke CSV
 bool save_doctors_to_csv(const char *filepath) {
     FILE *file = fopen(filepath, "w");
     if (file == NULL) {
@@ -11,7 +14,7 @@ bool save_doctors_to_csv(const char *filepath) {
         return false;
     }
 
-    // Write header
+    // Buat line header
     fprintf(file, "ID,Name,MaxShifts,Week1,Week2,Week3,Week4,Week5");
     for (int d = 0; d < NUM_DAYS_PER_WEEK; d++) {
         for (int s = 0; s < NUM_SHIFTS_PER_DAY; s++) {
@@ -20,7 +23,7 @@ bool save_doctors_to_csv(const char *filepath) {
     }
     fprintf(file, "\n");
 
-    // Write data rows
+    // Buat line untuk setiap dokter
     Doctor *current = head;
     while (current != NULL) {
         fprintf(file, "%d,%s,%d", current->id, current->name,
@@ -41,28 +44,30 @@ bool save_doctors_to_csv(const char *filepath) {
     return true;
 }
 
+// Load data dokter dari CSV
 bool load_doctors_from_csv(const char *filepath) {
     FILE *file = fopen(filepath, "r");
     if (file == NULL) {
-        return false;
+        return false; // File tidak ada, bukan error
     }
 
-    freeDoctorList();
+    freeDoctorList(); // Kosongkan data dokter sebelum diload selanjutnya
 
     char line[1024];
-    // Cek isi file, sekalian skip 1 line kalau berisi
+    // Skip line header
     if (fgets(line, sizeof(line), file) == NULL) {
         fclose(file);
-        return true; // Empty file is not an error
+        return true; // File kosong, bukan error
     }
 
     while (fgets(line, sizeof(line), file)) {
         if (strlen(line) < 2)
-            continue;
+            continue; // Error handling untuk line dibawah threshold jumlah
+                      // karakter
 
         Doctor *new_doctor = (Doctor *)malloc(sizeof(Doctor));
-        if (!new_doctor) {
-            printf("Memory allocation failed during CSV load.\n");
+        if (new_doctor == NULL) {
+            perror("Memory allocation failed during CSV load");
             fclose(file);
             return false;
         }
@@ -70,50 +75,39 @@ bool load_doctors_from_csv(const char *filepath) {
         char *token;
         int field_count = 0;
 
-        // Use a copy for strtok as it modifies the string
-        char line_copy[1024];
-        strncpy(line_copy, line, sizeof(line_copy));
-
-        token = strtok(line_copy, ",");
+        token = strtok(line, ",\n");
         while (token != NULL) {
-            switch (field_count) {
-            case 0:
+            // Kolom 0 -> ID
+            if (field_count == 0) {
                 new_doctor->id = atoi(token);
-                break;
-            case 1:
+                // Kolom 1 -> Nama
+            } else if (field_count == 1) {
                 strncpy(new_doctor->name, token, MAX_NAME_LENGTH - 1);
                 new_doctor->name[MAX_NAME_LENGTH - 1] = '\0';
-                break;
-            case 2:
+                // Kolom 2 -> Jumlah shift maksimal per minggu
+            } else if (field_count == 2) {
                 new_doctor->max_shifts_per_week = atoi(token);
-                break;
-            // Workload fields (3 to 7)
-            case 3:
-            case 4:
-            case 5:
-            case 6:
-            case 7:
+                // Kolom 3-7 -> Total shift yang terjadwal untuk minggu ke-n
+                // Minggu ke-(0-4)
+            } else if (field_count >= 3 && field_count < 3 + NUM_WEEKS) {
                 new_doctor->shifts_scheduled_per_week[field_count - 3] =
                     atoi(token);
-                break;
-            // Preference fields (8 to 28)
-            default:
-                if (field_count >= 8 &&
-                    field_count <
-                        8 + (NUM_DAYS_PER_WEEK * NUM_SHIFTS_PER_DAY)) {
-                    int pref_index = field_count - 8;
-                    int day = pref_index / NUM_SHIFTS_PER_DAY;
-                    int shift = pref_index % NUM_SHIFTS_PER_DAY;
-                    new_doctor->preference[day][shift] = atoi(token);
-                }
-                break;
+                // Kolom 8 Preferensi Hari dan Shift (0 = Tidak ingin)
+            } else if (field_count >= 8 &&
+                       field_count <
+                           8 + (NUM_DAYS_PER_WEEK * NUM_SHIFTS_PER_DAY)) {
+                int pref_index = field_count - 8;
+                int day = pref_index / NUM_SHIFTS_PER_DAY;
+                int shift = pref_index % NUM_SHIFTS_PER_DAY;
+                new_doctor->preference[day][shift] = atoi(token);
             }
-            token = strtok(NULL, ",");
+
+            token = strtok(NULL, ",\n");
             field_count++;
         }
         new_doctor->next = NULL;
 
-        // Add the new doctor to the end of the list
+        // Tambahkan dokter ke "end" dari list
         if (head == NULL) {
             head = new_doctor;
         } else {
@@ -126,12 +120,13 @@ bool load_doctors_from_csv(const char *filepath) {
     }
 
     fclose(file);
-    refreshDoctorID(); // Update the next_doctor_id to avoid conflicts
+    refreshDoctorID(); // Refresh ID daftar dokter
     return true;
 }
 
-// --- Schedule CSV Functions ---
+// Fungsi CSV untuk Scheduling
 
+// Menyimpan Schedule ke CSV
 bool save_schedule_to_csv(const char *filepath) {
     FILE *file = fopen(filepath, "w");
     if (file == NULL) {
@@ -155,19 +150,23 @@ bool save_schedule_to_csv(const char *filepath) {
     return true;
 }
 
+// Load schedule dari CSV
 bool load_schedule_from_csv(const char *filepath) {
     FILE *file = fopen(filepath, "r");
+
+    // Check keberadaan file (ada atau tidak)
     if (file == NULL) {
-        return false; // File doesn't exist, not an error
+        return false; // Tidak ada file, bukan error
     }
 
-    initialize_schedule(); // Clear existing schedule
+    initialize_schedule(); // Kosongkan schedule yang ada sebelum diload yang
+                           // baru
 
     char line[256];
-    // Skip header
+    // Skip line pertama (header)
     if (fgets(line, sizeof(line), file) == NULL) {
         fclose(file);
-        return true; // Empty file
+        return true; // Jika file kosong, bukan error
     }
 
     int w, d, m_id, a_id, n_id;
