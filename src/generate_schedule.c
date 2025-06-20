@@ -1,6 +1,6 @@
 /*
 spesifikasi : melakukan iterasi untuk mengisi jadwal dokter
-input  : NULL
+input  : Jadwal kosong
 output : Jadwal Dokter yang seseuai ketentuan
 */
 
@@ -9,35 +9,16 @@ output : Jadwal Dokter yang seseuai ketentuan
 #include <string.h>
 #include <time.h> 
 
-int number_doctor = 0;
-
-typedef  struct Doctor {
-    // Penyimpanan data dokter
-    int id;
-    char name[20];  
-    int max_shift_per_week;
-    int shift_scheduled_per_week[5];
-    int preference[7][3];
-} Doctor;
-
-typedef struct conflict {
-    // Pernyimpan data jadwal dokter yang preferensinya tidak terpenuhi
-    int id;
-    char name[20];
-    int hari;
-    int shift;
-    struct conflict* next;
-} conflict;
+#include "view_schedule.h"
+#include "generate_schedule.h"
 
 conflict *head = NULL; // head linked list jadwal konflik
 
-
+Doctor * data[10];
+    int number_doctor = 0;
 /*
 Menambahkan data dokter ke Array of struct
 */
-
-Doctor* data[10]; 
-
 void add(int id, char* name, int max_shift, int preference[7][3]) {
     
     Doctor* newnode = malloc(sizeof(Doctor));
@@ -53,7 +34,7 @@ void add(int id, char* name, int max_shift, int preference[7][3]) {
             newnode->preference[i][j] = preference[i][j];
         }
     }
-    
+
     for (int i = 0; i < 5 ; i ++ ){
         newnode->shift_scheduled_per_week[i] = 0;
     }
@@ -79,9 +60,6 @@ void conflict_schedule(int hari, int shift,int id, char *name) {
 }
 
 
-// inisialisasi array penyimpan data dokter
-
-
 /*
 Mencetak data yang disimpan dalam bentuk matriks
 */
@@ -99,14 +77,12 @@ void printing_matriks(int baris, int kolom, int matriks[baris][kolom])
     }
 }
 
-
 /*
 Mencari angka random pada rentang 0 sampai jumlah doktor yang ada
 */
 int rng(int number_doctor) {
     return rand() % number_doctor;
 }
-
 
 /*
 Mengecek Preferensi. Jika tidak bisa pada shift tersebut, memberikan output 1
@@ -130,6 +106,7 @@ void generate_schedule (int schedule[30][3]) {
     
     // boolean yang menunjukkan apakah preferensi dokter diperhitungkan. Jika 1, maka preferensi diperhitungkan. jika 0, hanya shift maksimal yang diperhitungkan
     int preference_focus = 1; 
+    int success = 1;
 
     /*
     iterasi per sesi per hari untuk 3 sesi per hari selama 30 hari.
@@ -151,7 +128,7 @@ void generate_schedule (int schedule[30][3]) {
         while(dokter_ke++ < number_doctor*2) {
 
             // printf("i %d j %d\n",i + 1,j + 1);
-            // printf("Dokter ke %d  random %d  id %d jumlah dokter %d, preference focus %d bisa ngga %d\n", dokter_ke , random_doctor, temp->id, number_doctor, preference_focus, temp->preference[i % 7][j]);
+            // printf("Dokter ke %d  random %d  id %d jumlah dokter %d, preference focus %d bisa ngga %d\n", dokter_ke , random_doctor, temp->id, *number_doctor, preference_focus, temp->preference[i % 7][j]);
             // printf("shift max %d, shfit sekarang %d\n", temp->max_shift_per_week , temp->shift_scheduled_per_week[i / 7]);
 
             if (temp->max_shift_per_week > temp->shift_scheduled_per_week[i / 7]) {
@@ -189,7 +166,18 @@ void generate_schedule (int schedule[30][3]) {
             temp = data[random_doctor];
       
         }
+        if (schedule[i][j] == 0) {
+            success = 0;
+            schedule[i][j] = rng(number_doctor);
         }
+        }
+        
+
+    }
+
+    if (success == 0) {
+        printf("Jumlah dokter kurang\n");
+        return;
     }
 
 
@@ -265,106 +253,17 @@ void view_conflict() {
 }
 
 
-int main() {
-    srand(time(NULL)); // membuat output fungsi rng benar benar random meskipun dijalankan berulang kali pada suatu iterasi
-
-    /*
-    data preferensi dokter
-    jika 0 berarti tidak bisa pada shift tersebut, jika 1 bisa
-    baris adalah hari ke-..
-    kolom adalah shift ke-...
-    */
-    int preference1[7][3] = {
-    {1, 1, 1},
-    {0, 0, 0},
-    {1, 1, 1},
-    {1, 1, 1},
-    {1, 1, 1},
-    {1, 1, 1},
-    {1, 1, 0}
-};
-
-int preference2[7][3] = {
-    {1, 1, 1},
-    {1, 1, 1},
-    {0, 1, 1},
-    {0, 0, 0},
-    {1, 1, 1},
-    {1, 1, 1},
-    {1, 1, 0}
-};
-
-int preference3[7][3] = {
-    {0, 1, 1},
-    {1, 1, 1},
-    {1, 1, 1},
-    {1, 1, 1},
-    {1, 1, 1},
-    {1, 1, 0},
-    {0, 0, 0}
-};
-
-int preference4[7][3] = {
-    {0, 0, 0},
-    {0, 0, 0},
-    {0, 0, 0},
-    {1, 0, 0},
-    {0, 1, 0},
-    {0, 0, 1},
-    {0, 0, 1}
-};
-
-int preference5[7][3] = {
-    {0, 0, 0},
-    {0, 0, 0},
-    {0, 0, 0},
-    {0, 0, 0},
-    {1, 0, 0},
-    {0, 1, 0},
-    {0, 0, 1}
-};
-
-int preference6[7][3] = {
-    {0, 0, 1},
-    {0, 0, 0},
-    {0, 0, 0},
-    {0, 0, 0},
-    {0, 0, 0},
-    {1, 0, 0},
-    {0, 1, 0}
-};
-
-int preference7[7][3] = {
-    {0, 1, 0},
-    {0, 0, 1},
-    {0, 0, 0},
-    {0, 0, 0},
-    {0, 0, 0},
-    {0, 0, 0},
-    {1, 0, 1}
-};
-
-
-
-    // Data dokter
-    add(1, "Doni", 6, preference1);
-    add(2, "Rena", 5, preference2);
-    add(3, "Levi", 4, preference3);
-    add(4, "Alvi", 4, preference2);
-    add(5, "Vely", 5, preference3);
-
-
-    // inisialisasi matriks berdimensi 30 x 3 yang meyimpan id dokter yang bertugas pada shift tersebut
-    // baris : tanggal
-    // kolom : sesi
-    int schedule[30][3] ={0};
-
-    // Menjalankan fungsi pembuatan jadwal
-    generate_schedule(schedule);
-
-    printing_matriks(30,3,schedule);
-
-    view_conflict();
-
-    return 0;
+void view_doctor(Doctor** data) {
+    printf("data dokter\n");
+    for (int i = 0; i < number_doctor; i ++) {
+        printf("%d. %s\n", i+1, data[i]->name);
+    }
 }
+
+void remove_doctor(Doctor ** data, int* number_doctor, int id_target) {
+    for (int i = id_target - 1; i < *number_doctor - 1; i ++) {
+        data[i] = data[i+1];
+    }
+    *number_doctor -= 1;
+}
+
