@@ -1,0 +1,620 @@
+// TEMPORARY MAIN UNTUK CLI
+// Fungsi Handler memang agak ribet, mau disimplifikasi lagi nanti
+
+#include "csv_utils.h"
+#include "doctor_list.h"
+#include "scheduler.h"
+#include <ctype.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <sys/stat.h>
+#include <sys/types.h>
+#include <time.h>
+
+// CLS/Clear screen utk spesifik OS
+#ifdef _WIN32
+#include <direct.h>
+#define MKDIR(path) _mkdir(path)
+#define CLEAR_SCREEN "cls"
+#else
+#define MKDIR(path) mkdir(path, 0777)
+#define CLEAR_SCREEN "clear"
+#endif
+
+// --- Prototype Fungsi ---
+void handle_add_doctor();
+void handle_edit_doctor();
+void handle_remove_doctor();
+void handle_generate_schedule();
+void display_schedule_menu();
+void handle_set_preferences(int doctor_id);
+void handle_load_data();
+void handle_save_data();
+bool create_directory_if_not_exists(const char *path);
+int get_integer_input();
+void get_string_input(char *buffer, int size);
+void run_cli_app();
+
+// --- Prototype untuk Fungsi Helper Tampilan Jadwal ---
+void display_all_full();
+void display_all_week();
+void display_all_day();
+void display_doctor_full();
+void display_doctor_week();
+void display_doctor_day();
+
+int main() {
+    srand(time(NULL)); // Seed RNG sekali di awal
+    initialize_schedule();
+    run_cli_app();
+
+    freeDoctorList();
+    free_conflict_list();
+    printf("Memori telah dibebaskan. Sampai jumpa!\n");
+    return 0;
+}
+
+// Main loop CLI
+void run_cli_app() {
+    const char *menu_options[] = {
+        "Tampilkan Semua Dokter",   "Tambah Dokter Baru",
+        "Edit Informasi Dokter",    "Hapus Dokter",
+        "Buat Jadwal Otomatis",     "Tampilkan Jadwal",
+        "Tampilkan Konflik Jadwal", "Load Data dari Direktori",
+        "Simpan Data ke Direktori", "Keluar"};
+    int num_options = sizeof(menu_options) / sizeof(menu_options[0]);
+
+    void (*action_handlers[])() = {
+        displayDoctors,       handle_add_doctor,        handle_edit_doctor,
+        handle_remove_doctor, handle_generate_schedule, display_schedule_menu,
+        view_conflict,        handle_load_data,         handle_save_data};
+
+    int choice = 0;
+    while (choice != num_options) {
+        system(CLEAR_SCREEN);
+        printf("\n--- Menu Utama Penjadwal Dokter ---\n");
+        for (int i = 0; i < num_options; i++) {
+            printf("%d. %s\n", i + 1, menu_options[i]);
+        }
+        printf("----------------------------------\n");
+        printf("Masukkan pilihan Anda: ");
+
+        choice = get_integer_input();
+
+        if (choice > 0 && choice < num_options) {
+            action_handlers[choice - 1]();
+        } else if (choice == num_options) {
+            printf("Keluar dari program...\n");
+        } else {
+            printf("\n*** Pilihan tidak valid. Silakan coba lagi. ***\n");
+        }
+
+        if (choice != num_options) {
+            printf("\nTekan Enter untuk melanjutkan...");
+            getchar();
+        }
+    }
+}
+
+// ToDo: Pemerataan naming convention variable, pemerataan styling display
+// schedule, GUI
+
+// --- FUNGSI TAMPILAN JADWAL UTAMA (MENU) ---
+void display_schedule_menu() {
+    const char *display_options[] = {
+        "Tampilkan Jadwal Keseluruhan (30 Hari)",
+        "Tampilkan Jadwal Keseluruhan (Per Minggu)",
+        "Tampilkan Jadwal Keseluruhan (Per Hari)",
+        "Tampilkan Jadwal Dokter Spesifik (30 Hari)",
+        "Tampilkan Jadwal Dokter Spesifik (Per Minggu)",
+        "Tampilkan Jadwal Dokter Spesifik (Per Hari)"};
+    int num_options = sizeof(display_options) / sizeof(display_options[0]);
+
+    void (*action_handlers[])() = {display_all_full,    display_all_week,
+                                   display_all_day,     display_doctor_full,
+                                   display_doctor_week, display_doctor_day};
+    int choice = 0;
+    system(CLEAR_SCREEN);
+    printf("\n--- Menu Tampilan Jadwal ---\n");
+    for (int i = 0; i < num_options; i++) {
+        printf("%d. %s\n", i + 1, display_options[i]);
+    }
+    printf("----------------------------\n");
+    printf("Masukkan pilihan Anda: ");
+
+    choice = get_integer_input();
+
+    if (choice > 0 && choice <= num_options) {
+        action_handlers[choice - 1]();
+    } else {
+        printf("\n*** Pilihan tidak valid. Silakan coba lagi. ***\n");
+    }
+}
+
+// --- IMPLEMENTASI FUNGSI HELPER TAMPILAN JADWAL ---
+
+// 1. Menampilkan jadwal keseluruhan untuk 30 hari
+void display_all_full() {
+    int schedule_ids[NUM_DAYS][NUM_SHIFTS_PER_DAY];
+    get_all_doctors_schedule_month(schedule_ids);
+
+    const char *day_names[] = {"Minggu", "Senin", "Selasa", "Rabu",
+                               "Kamis",  "Jumat", "Sabtu"}; // Sun=0
+    const char *shift_names[] = {"Pagi", "Siang", "Malam"};
+
+    printf("\n--- Jadwal Keseluruhan (30 Hari) ---\n");
+    for (int day = 0; day < NUM_DAYS; day++) {
+        if (day % 7 == 0) {
+            printf("\n--- Minggu %d ---\n", (day / 7) + 1);
+        }
+        printf("Hari %-2d (%-8s): ", day, day_names[day % 7]);
+
+        for (int shift = 0; shift < NUM_SHIFTS_PER_DAY; shift++) {
+            Doctor *doc = findDoctorById(schedule_ids[day][shift]);
+            printf("%-8s: %-15s | ", shift_names[shift],
+                   doc ? doc->name : "Kosong");
+        }
+        printf("\n");
+    }
+}
+
+// 2. Menampilkan jadwal keseluruhan untuk minggu spesifik
+void display_all_week() {
+    printf("Masukkan nomor minggu (1-5): ");
+    int week = get_integer_input();
+    if (week < 1 || week > NUM_WEEKS) {
+        printf("\n*** Nomor minggu tidak valid. ***\n");
+        return;
+    }
+
+    int weekly_schedule_ids[NUM_DAYS_PER_WEEK][NUM_SHIFTS_PER_DAY];
+    get_all_doctors_schedule_week(week, weekly_schedule_ids);
+
+    const char *day_names[] = {"Senin", "Selasa", "Rabu",  "Kamis",
+                               "Jumat", "Sabtu",  "Minggu"};
+    // const char *shift_names[] = {"Pagi", "Siang", "Malam"};
+
+    printf("\n--- Jadwal Keseluruhan - Minggu %d ---\n", week);
+
+    for (int day = 0; day < NUM_DAYS_PER_WEEK; day++) {
+        printf("%-10s: ", day_names[day]);
+        for (int shift = 0; shift < NUM_SHIFTS_PER_DAY; shift++) {
+            Doctor *doc = findDoctorById(weekly_schedule_ids[day][shift]);
+            printf("%-15s | ", doc ? doc->name : "Kosong");
+        }
+        printf("\n");
+    }
+}
+
+// 3. Menampilkan jadwal keseluruhan untuk hari spesifik
+void display_all_day() {
+    printf("Masukkan nomor minggu (1-5): ");
+    int week = get_integer_input();
+    printf("Masukkan nomor hari (0=Senin, 1=Selasa, ...): ");
+    int day = get_integer_input();
+
+    if (week < 1 || week > NUM_WEEKS || day < 0 || day >= NUM_DAYS_PER_WEEK) {
+        printf("\n*** Nomor minggu atau hari tidak valid. ***\n");
+        return;
+    }
+
+    int daily_schedule_ids[NUM_SHIFTS_PER_DAY];
+    get_all_doctors_schedule_day(week, day, daily_schedule_ids);
+
+    const char *day_names[] = {"Senin", "Selasa", "Rabu",  "Kamis",
+                               "Jumat", "Sabtu",  "Minggu"};
+    const char *shift_names[] = {"Pagi", "Siang", "Malam"};
+
+    printf("\n--- Jadwal %s, Minggu %d ---\n", day_names[day], week);
+    for (int shift = 0; shift < NUM_SHIFTS_PER_DAY; shift++) {
+        Doctor *doc = findDoctorById(daily_schedule_ids[shift]);
+        printf("%-10s: %s\n", shift_names[shift], doc ? doc->name : "Kosong");
+    }
+}
+
+// 4. Menampilkan jadwal dokter spesifik untuk 30 hari
+void display_doctor_full() {
+    displayDoctors();
+    printf("Masukkan ID Dokter: ");
+    int docId = get_integer_input();
+    Doctor *doc = findDoctorById(docId);
+    if (!doc) {
+        printf("\n*** Dokter dengan ID %d tidak ditemukan. ***\n", docId);
+        return;
+    }
+
+    int monthly_shifts[NUM_WEEKS][NUM_DAYS_PER_WEEK][NUM_SHIFTS_PER_DAY];
+    int monthly_count[NUM_WEEKS][NUM_DAYS_PER_WEEK];
+    get_doctor_schedule_month(docId, monthly_shifts, monthly_count);
+
+    printf("\n--- Jadwal 30 Hari untuk Dr. %s ---\n", doc->name);
+    const char *shift_names[] = {"Pagi", "Siang", "Malam"};
+    const char *day_names[] = {"Senin", "Selasa", "Rabu",  "Kamis",
+                               "Jumat", "Sabtu",  "Minggu"};
+    int total_shifts = totalShift(docId);
+
+    for (int w = 0; w < NUM_WEEKS; w++) {
+        int shifts_this_week = 0;
+        for (int d = 0; d < NUM_DAYS_PER_WEEK; d++) {
+            if (monthly_count[w][d] > 0) {
+                shifts_this_week++;
+            }
+        }
+
+        if (shifts_this_week > 0) {
+            printf("\n--- Minggu %d ---\n", w + 1);
+            for (int d = 0; d < NUM_DAYS_PER_WEEK; d++) {
+                if (monthly_count[w][d] > 0) {
+                    printf("%-10s: ", day_names[d]);
+                    for (int s = 0; s < monthly_count[w][d]; s++) {
+                        printf("%s ", shift_names[monthly_shifts[w][d][s]]);
+                        // total_shifts++;
+                    }
+                    printf("\n");
+                }
+            }
+        }
+    }
+
+    if (total_shifts == 0) {
+        printf("Tidak ada shift yang dijadwalkan untuk dokter ini.\n");
+    } else {
+        printf("\nTotal Shift: %d\n", total_shifts);
+    }
+}
+
+// 5. Menampilkan jadwal dokter spesifik untuk minggu tertentu
+void display_doctor_week() {
+    displayDoctors();
+    printf("Masukkan ID Dokter: ");
+    int docId = get_integer_input();
+    Doctor *doc = findDoctorById(docId);
+    if (!doc) {
+        printf("\n*** Dokter dengan ID %d tidak ditemukan. ***\n", docId);
+        return;
+    }
+
+    printf("Masukkan nomor minggu (1-5): ");
+    int week = get_integer_input();
+    if (week < 1 || week > NUM_WEEKS) {
+        printf("\n*** Nomor minggu tidak valid. ***\n");
+        return;
+    }
+
+    int weekly_shifts[NUM_DAYS_PER_WEEK][NUM_SHIFTS_PER_DAY];
+    int weekly_count[NUM_DAYS_PER_WEEK];
+    getDoctorScheduleWeek(week, docId, weekly_shifts, weekly_count);
+
+    printf("\n--- Jadwal Minggu %d untuk Dr. %s ---\n", week, doc->name);
+    const char *day_names[] = {"Senin", "Selasa", "Rabu",  "Kamis",
+                               "Jumat", "Sabtu",  "Minggu"};
+    const char *shift_names[] = {"Pagi", "Siang", "Malam"};
+    int total_weekly_shifts = totalShiftWeek(week, docId);
+
+    for (int d = 0; d < NUM_DAYS_PER_WEEK; d++) {
+        if (weekly_count[d] > 0) {
+            printf("%-10s: ", day_names[d]);
+            for (int s = 0; s < weekly_count[d]; s++) {
+                printf("%s ", shift_names[weekly_shifts[d][s]]);
+                // total_weekly_shifts++;
+            }
+            printf("\n");
+        }
+    }
+
+    if (total_weekly_shifts == 0) {
+        printf("Tidak ada shift yang dijadwalkan untuk minggu ini.\n");
+    }
+}
+
+// 6. Menampilkan jadwal dokter spesifik untuk hari tertentu
+void display_doctor_day() {
+    displayDoctors();
+    printf("Masukkan ID Dokter: ");
+    int docId = get_integer_input();
+    Doctor *doc = findDoctorById(docId);
+    if (!doc) {
+        printf("\n*** Dokter dengan ID %d tidak ditemukan. ***\n", docId);
+        return;
+    }
+
+    printf("Masukkan nomor minggu (1-5): ");
+    int week = get_integer_input();
+    printf("Masukkan nomor hari (0=Senin, 1=Selasa, ...): ");
+    int day = get_integer_input();
+
+    if (week < 1 || week > NUM_WEEKS || day < 0 || day >= NUM_DAYS_PER_WEEK) {
+        printf("\n*** Nomor minggu atau hari tidak valid. ***\n");
+        return;
+    }
+
+    int daily_shifts[NUM_SHIFTS_PER_DAY];
+    int shift_count = getDoctorScheduleDay(week, day, docId, daily_shifts);
+
+    const char *day_names[] = {"Senin", "Selasa", "Rabu",  "Kamis",
+                               "Jumat", "Sabtu",  "Minggu"};
+    printf("\n--- Jadwal %s, Minggu %d untuk Dr. %s ---\n", day_names[day],
+           week, doc->name);
+    const char *shift_names[] = {"Pagi", "Siang", "Malam"};
+
+    if (shift_count == 0) {
+        printf("Tidak ada shift yang dijadwalkan untuk hari ini.\n");
+    } else {
+        printf("Bertugas pada shift: ");
+        for (int i = 0; i < shift_count; i++) {
+            printf("%s ", shift_names[daily_shifts[i]]);
+        }
+        printf("\n");
+    }
+}
+
+// --- FUNGSI-FUNGSI HANDLER LAINNYA ---
+
+void handle_generate_schedule() {
+    printf("Membuat Jadwal...\n");
+    generate_schedule();
+    printf("Pembuatan jadwal selesai.\n");
+}
+
+int get_integer_input() {
+    int number = -1;
+    char buffer[100];
+    while (1) {
+        if (fgets(buffer, sizeof(buffer), stdin) != NULL) {
+            if (sscanf(buffer, "%d", &number) == 1) {
+                // Check if there are trailing characters
+                char *end_ptr;
+                strtol(buffer, &end_ptr, 10);
+                if (*end_ptr == '\n' || *end_ptr == '\0') {
+                    return number;
+                }
+            }
+        }
+        printf("*** Input tidak valid. Masukkan angka saja. Coba lagi: ");
+    }
+}
+
+void get_string_input(char *buffer, int size) {
+    if (fgets(buffer, size, stdin) != NULL) {
+        buffer[strcspn(buffer, "\n")] = '\0';
+    }
+}
+
+void handle_load_data() {
+    char dir_path[256];
+    char doc_path[512];
+    char sched_path[512];
+
+    printf("\n--- Muat Data ---\n");
+    printf("Masukkan path direktori (Enter untuk default 'data'): ");
+    get_string_input(dir_path, sizeof(dir_path));
+
+    // Jika input kosong, gunakan "data" sebagai default
+    if (strlen(dir_path) == 0) {
+        strcpy(dir_path, "data");
+    }
+
+    strcpy(doc_path, dir_path);
+    strcat(doc_path, "/doctors.csv");
+    strcpy(sched_path, dir_path);
+    strcat(sched_path, "/schedule.csv");
+
+    printf("Memuat data dokter dari '%s'...\n", doc_path);
+    if (load_doctors_from_csv(doc_path)) {
+        printf("Daftar dokter berhasil dimuat.\n");
+    } else {
+        printf("Gagal memuat daftar dokter dari '%s'. File mungkin tidak "
+               "ada.\n",
+               doc_path);
+    }
+
+    printf("Memuat jadwal dari '%s'...\n", sched_path);
+    if (load_schedule_from_csv(sched_path)) {
+        printf("Jadwal berhasil dimuat.\n");
+    } else {
+        printf("Gagal memuat jadwal dari '%s'. File mungkin tidak ada atau "
+               "kosong.\n",
+               sched_path);
+    }
+}
+
+void handle_save_data() {
+    char dir_path[256];
+    char doc_path[512];
+    char sched_path[512];
+
+    printf("\n--- Simpan Data ---\n");
+    printf("Masukkan path direktori (Enter untuk default 'data'): ");
+    get_string_input(dir_path, sizeof(dir_path));
+
+    // Jika input kosong, gunakan "data" sebagai default
+    if (strlen(dir_path) == 0) {
+        strcpy(dir_path, "data");
+    }
+
+    if (!create_directory_if_not_exists(dir_path)) {
+        return;
+    }
+
+    strcpy(doc_path, dir_path);
+    strcat(doc_path, "/doctors.csv");
+    strcpy(sched_path, dir_path);
+    strcat(sched_path, "/schedule.csv");
+
+    printf("Menyimpan data dokter ke '%s'...\n", doc_path);
+    if (save_doctors_to_csv(doc_path)) {
+        printf("Daftar dokter berhasil disimpan.\n");
+    } else {
+        printf("Gagal menyimpan daftar dokter.\n");
+    }
+
+    printf("Menyimpan jadwal ke '%s'...\n", sched_path);
+    if (save_schedule_to_csv(sched_path)) {
+        printf("Jadwal berhasil disimpan.\n");
+    } else {
+        printf("Gagal menyimpan jadwal.\n");
+    }
+}
+
+bool create_directory_if_not_exists(const char *path) {
+    struct stat st = {0};
+    if (stat(path, &st) == -1) {
+        printf("Direktori '%s' tidak ada. Buat direktori? (y/n): ", path);
+        char buffer[10];
+        get_string_input(buffer, sizeof(buffer));
+        if (tolower(buffer[0]) == 'y') {
+            if (MKDIR(path) == 0) {
+                printf("Direktori berhasil dibuat.\n");
+                return true;
+            } else {
+                perror("Gagal membuat direktori");
+                return false;
+            }
+        } else {
+            printf("Operasi penyimpanan dibatalkan.\n");
+            return false;
+        }
+    }
+    return true;
+}
+
+void handle_add_doctor() {
+    char name[MAX_NAME_LENGTH];
+    int max_shifts;
+
+    printf("\n--- Tambah Dokter Baru ---\n");
+    printf("Masukkan nama dokter: ");
+    get_string_input(name, sizeof(name));
+
+    printf("Masukkan maksimal shift per minggu: ");
+    max_shifts = get_integer_input();
+
+    if (strlen(name) > 0 && max_shifts > 0) {
+        addDoctor(name, max_shifts);
+        Doctor *new_doctor = findDoctorByName(name);
+        if (new_doctor) {
+            printf("Apakah Anda ingin mengatur preferensi ketidaksediaan "
+                   "sekarang? (y/n): ");
+            char buffer[10];
+            get_string_input(buffer, sizeof(buffer));
+            if (tolower(buffer[0]) == 'y') {
+                handle_set_preferences(new_doctor->id);
+            }
+        }
+    } else {
+        printf("\n*** Input tidak valid. Nama tidak boleh kosong dan shift "
+               "harus positif. ***\n");
+    }
+}
+
+void handle_edit_doctor() {
+    if (!head) {
+        printf("\n*** Tidak ada dokter di dalam daftar untuk diedit. ***\n");
+        return;
+    }
+    printf("\n--- Edit Informasi Dokter ---\n");
+    displayDoctors();
+    printf("\nMasukkan ID dokter yang akan diedit: ");
+    int id = get_integer_input();
+
+    Doctor *doctor = findDoctorById(id);
+    if (doctor) {
+        char new_name[MAX_NAME_LENGTH];
+        int new_max_shifts;
+
+        printf("Mengedit Dokter ID %d: %s\n", id, doctor->name);
+        printf("Masukkan nama baru (atau tekan Enter untuk mempertahankan "
+               "'%s'): ",
+               doctor->name);
+        get_string_input(new_name, sizeof(new_name));
+
+        printf("Masukkan maks shift per minggu yang baru (saat ini: %d, "
+               "masukkan angka negatif atau 0 untuk mempertahankan): ",
+               doctor->max_shifts_per_week);
+        new_max_shifts = get_integer_input();
+
+        updateDoctor(id, new_name, new_max_shifts);
+        printf("Informasi dokter telah diperbarui.\n");
+
+        printf("\nApakah Anda ingin mengedit preferensi untuk Dr. %s? (y/n): ",
+               doctor->name);
+        char buffer[10];
+        get_string_input(buffer, sizeof(buffer));
+        if (tolower(buffer[0]) == 'y') {
+            handle_set_preferences(id);
+        }
+    } else {
+        printf("\n*** Dokter dengan ID %d tidak ditemukan. ***\n", id);
+    }
+}
+
+void handle_remove_doctor() {
+    if (!head) {
+        printf("\n*** Tidak ada dokter di dalam daftar untuk dihapus. ***\n");
+        return;
+    }
+    printf("\n--- Hapus Dokter ---\n");
+    displayDoctors();
+    printf("\nMasukkan ID dokter yang akan dihapus: ");
+    int id = get_integer_input();
+
+    Doctor *doctor = findDoctorById(id);
+    if (doctor) {
+        printf("Apakah Anda yakin ingin menghapus Dr. %s (ID: %d)? (y/n): ",
+               doctor->name, id);
+        char buffer[10];
+        get_string_input(buffer, sizeof(buffer));
+        if (tolower(buffer[0]) == 'y') {
+            removeDoctor(id);
+        } else {
+            printf("Penghapusan dibatalkan.\n");
+        }
+    } else {
+        printf("\n*** Dokter dengan ID %d tidak ditemukan. ***\n", id);
+    }
+}
+
+void handle_set_preferences(int doctor_id) {
+    Doctor *doctor = findDoctorById(doctor_id);
+    if (!doctor) {
+        printf("\n*** Tidak dapat menemukan dokter untuk mengatur preferensi. "
+               "***\n");
+        return;
+    }
+
+    printf("\n--- Mengatur Preferensi untuk Dr. %s ---\n", doctor->name);
+    printf("Untuk setiap shift, masukkan 1 untuk TERSEDIA atau 0 untuk TIDAK "
+           "TERSEDIA.\n");
+    printf("Masukkan hari dari 0-6 (Senin=0, ... Minggu=6). Masukkan -1 untuk "
+           "selesai.\n\n");
+
+    while (1) {
+        int day, shift, can_do;
+        printf("Masukkan Hari (0-6) atau -1 untuk Selesai: ");
+        day = get_integer_input();
+        if (day == -1)
+            break;
+        if (day < 0 || day >= NUM_DAYS_PER_WEEK) {
+            printf("*** Hari tidak valid. Silakan coba lagi. ***\n");
+            continue;
+        }
+
+        printf("Masukkan Shift (0=Pagi, 1=Siang, 2=Malam): ");
+        shift = get_integer_input();
+        if (shift < 0 || shift >= NUM_SHIFTS_PER_DAY) {
+            printf("*** Shift tidak valid. Silakan coba lagi. ***\n");
+            continue;
+        }
+
+        printf("Apakah Dr. %s tersedia untuk shift ini? (1=Ya, 0=Tidak): ",
+               doctor->name);
+        can_do = get_integer_input();
+        if (can_do == 0 || can_do == 1) {
+            setDoctorPreference(doctor_id, day, shift, can_do);
+        } else {
+            printf("*** Ketersediaan tidak valid. Harap masukkan 0 atau 1. "
+                   "***\n");
+        }
+    }
+}
