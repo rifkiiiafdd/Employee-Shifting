@@ -3,18 +3,39 @@
 
 #include <stdbool.h>
 
-// Deklarasi fungsi (Prototype)
-
-// Menyimpan daftar dokter saat ini (dari linked list) ke sebuah file CSV.
+/**
+ * @brief Menyimpan daftar dokter saat ini (dari linked list) ke sebuah file
+ * CSV.
+ * @param filepath Path lengkap ke file CSV tujuan (misal: "data/doctors.csv").
+ * @return `true` jika penyimpanan berhasil, `false` jika gagal.
+ */
 bool save_doctors_to_csv(const char *filepath);
 
-// Memuat daftar dokter dari file CSV, menimpa data dokter yang ada di memori.
+/**
+ * @brief Memuat daftar dokter dari file CSV, menimpa data dokter yang ada di
+ * memori.
+ * @details Sebelum memuat, fungsi ini akan menghapus semua data dokter yang ada
+ * saat ini.
+ * @param filepath Path lengkap ke file CSV sumber (misal: "data/doctors.csv").
+ * @return `true` jika pemuatan berhasil, `false` jika file tidak ditemukan atau
+ * terjadi error.
+ */
 bool load_doctors_from_csv(const char *filepath);
 
-// Menyimpan data jadwal (array schedule) ke sebuah file CSV.
+/**
+ * @brief Menyimpan data jadwal (dari array `schedule` global) ke sebuah file
+ * CSV.
+ * @param filepath Path lengkap ke file CSV tujuan (misal: "data/schedule.csv").
+ * @return `true` jika penyimpanan berhasil, `false` jika gagal.
+ */
 bool save_schedule_to_csv(const char *filepath);
 
-// Memuat data jadwal dari file CSV ke dalam array schedule di memori.
+/**
+ * @brief Memuat data jadwal dari file CSV ke dalam array `schedule` di memori.
+ * @param filepath Path lengkap ke file CSV sumber (misal: "data/schedule.csv").
+ * @return `true` jika pemuatan berhasil, `false` jika file tidak ditemukan atau
+ * terjadi error.
+ */
 bool load_schedule_from_csv(const char *filepath);
 
 #endif // CSV_UTILS_H

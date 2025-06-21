@@ -14,17 +14,24 @@ draw io : https://drive.google.com/file/d/1CAYvvlZLIFzrJeAhUlGKcokvQ03BG_1N/view
 
 
 # About
+Tugas Besar EL200 - Pemecahan Masalah dengan Pemrograman 2025
+K-02
 
 # Contributors
+- 13221052 - Simbolon Patrick Vyto P
+- 13223049 - Rifki Afriadi
+- 13223058 - Abidah Izdihar Dzakiyyah
+- 13223067 - Vico A.C. Silalahi
+- 13223077 - Amirul Akhyar Hamid
 
 # Features
+- Load dan save ke/dari CSV
+- Tambah, edit, dan hapus data dokter
+- Buat penjadwalan secara otomatis
+- Tampilkan jadwal secara menyeluruh atau spesifik dokter, untuk 1 bulan, 1 minggu, ataupun 1 hari.
 
 # How to Run
-Using GCC only:
-```bash
-gcc -Wall -g -Iinclude -o scheduler src/*
-```
-Using makefile
+Using makefile (Untuk Windows dan UNIX)
 ```bash
 make clean
 make run

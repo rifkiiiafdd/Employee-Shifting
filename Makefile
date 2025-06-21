@@ -1,45 +1,88 @@
-# Target executable name
-TARGET = build/doctor_scheduler_gui
+# ------------------------- #
+#   Platform Detection      #
+# ------------------------- #
 
-# Compiler
-CC = gcc
+# Detect OS
+ifeq ($(OS),Windows_NT)
+    PLATFORM := Windows
+else
+    PLATFORM := $(shell uname -s)
+endif
+
+# ------------------------- #
+#   Platform-Specific Setup #
+# ------------------------- #
+
+ifeq ($(PLATFORM),Windows)
+    # Windows settings (MinGW)
+    TARGET := bin/doctor_scheduler_gui.exe
+    CC := gcc
+    PKG_CONFIG := pkg-config
+    LDFLAGS += -mwindows  # Prevent console window
+    MKDIR := mkdir -p
+    RM := rm -rf
+else
+    # Linux settings
+    TARGET := bin/doctor_scheduler_gui
+    CC := gcc
+    PKG_CONFIG := pkg-config
+    MKDIR := mkdir -p
+    RM := rm -rf
+endif
+
+# ------------------------- #
+#   Project Configuration   #
+# ------------------------- #
 
 # Source files
-SRCS = src/main.c src/doctor_list.c src/scheduler.c src/csv_utils.c
+SRCS := src/main.c src/doctor_list.c src/scheduler.c src/csv_utils.c
 
-# Object files
-OBJS = $(patsubst src/%.c,build/%.o,$(SRCS))
+# Objects
+OBJS := $(patsubst src/%.c,build/%.o,$(SRCS))
 
-# Include paths
-INCLUDES = -Iinclude -Isrc
+# Directories
+BUILD_DIR := build
+BIN_DIR := bin
 
 # Compiler flags
-CFLAGS = -Wall -g $(shell pkg-config --cflags gtk+-3.0) $(INCLUDES) -fPIC
+CFLAGS := -Wall -g $(shell $(PKG_CONFIG) --cflags gtk+-3.0) -Iinclude -Isrc
 
 # Linker flags
-LDFLAGS = $(shell pkg-config --libs gtk+-3.0) -no-pie
+LDFLAGS += $(shell $(PKG_CONFIG) --libs gtk+-3.0)
 
-# Default target
-all: build_dir $(TARGET)
+# ------------------------- #
+#   Build Targets           #
+# ------------------------- #
 
-# Create build directory
-build_dir:
-	mkdir -p build
+all: dirs $(TARGET)
 
-# Link executable
 $(TARGET): $(OBJS)
-	$(CC) $(OBJS) -o $(TARGET) $(LDFLAGS)
+	$(CC) $(OBJS) -o $@ $(LDFLAGS)
 
-# Compile source files
-build/%.o: src/%.c
+$(BUILD_DIR)/%.o: src/%.c
 	$(CC) $(CFLAGS) -c $< -o $@
 
-# Clean build artifacts
+dirs:
+	@$(MKDIR) $(BUILD_DIR) $(BIN_DIR)
+
 clean:
-	rm -rf build
+	$(RM) $(BUILD_DIR) $(BIN_DIR)
 
-# Install dependencies
-deps:
-	sudo apt-get install -y build-essential pkg-config libgtk-3-dev
+run: all
+	./$(TARGET)
 
-.PHONY: all clean build_dir deps
+# ------------------------- #
+#   Platform-Specific Help  #
+# ------------------------- #
+
+install-deps:
+ifeq ($(PLATFORM),Windows)
+	@echo "Install MSYS2 from https://www.msys2.org/"
+	@echo "Then run in MinGW64 shell:"
+	@echo "pacman -S mingw-w64-x86_64-gtk3 mingw-w64-x86_64-pkg-config"
+else
+	@echo "Run:"
+	@echo "sudo apt install -y build-essential pkg-config libgtk-3-dev"
+endif
+
+.PHONY: all dirs clean run install-deps
