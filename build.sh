@@ -4,7 +4,8 @@ echo "Cleaning project..."
 make clean
 
 echo "Generating compile_commands.json and building project..."
-bear -- make
+# bear -- make
+make
 
 if [ $? -eq 0 ]; then
     echo "Build successful. Running doctor_scheduler..."

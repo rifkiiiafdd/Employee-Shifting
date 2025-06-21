@@ -6,18 +6,14 @@
 // Variable Global
 Doctor *head = NULL;
 int next_doctor_id = 1;
-int schedule[NUM_WEEKS][NUM_DAYS_PER_WEEK][NUM_SHIFTS_PER_DAY];
-
-// Implementasi fungsi-fungsi di main (UNTUK CLI SAJA, BUKAN GUI)
+int schedule[NUM_DAYS][NUM_SHIFTS_PER_DAY];
 
 // Membuat dan mengosongkan array schedule ke 0 (Tidak terassign dokter
 // siapapun)
 void initialize_schedule() {
-    for (int w = 0; w < NUM_WEEKS; w++) {
-        for (int d = 0; d < NUM_DAYS_PER_WEEK; d++) {
-            for (int s = 0; s < NUM_SHIFTS_PER_DAY; s++) {
-                schedule[w][d][s] = 0; // 0 -> Tidak terassign
-            }
+    for (int d = 0; d < NUM_DAYS; d++) {
+        for (int s = 0; s < NUM_SHIFTS_PER_DAY; s++) {
+            schedule[d][s] = 0;
         }
     }
 }
@@ -26,7 +22,7 @@ void initialize_schedule() {
 Doctor *createDoctor(const char *name, int max_shifts_per_week) {
     Doctor *newDoctor = (Doctor *)malloc(sizeof(Doctor));
     if (newDoctor == NULL) {
-        perror("Memory allocation failed for new doctor");
+        perror("Alokasi memori untuk dokter baru gagal");
         return NULL;
     }
 
@@ -67,7 +63,7 @@ void addDoctor(const char *name, int max_shifts_per_week) {
         }
         current->next = newDoctor;
     }
-    printf("Doctor '%s' (ID: %d) added successfully.\n", newDoctor->name,
+    printf("Dokter '%s' (ID: %d) berhasil ditambahkan.\n", newDoctor->name,
            newDoctor->id);
 }
 
@@ -100,7 +96,7 @@ void removeDoctor(int id) {
     }
 
     if (current == NULL) {
-        printf("Doctor (ID: %d) not found.\n", id);
+        printf("Dokter (ID: %d) tidak ditemukan.\n", id);
         return;
     }
 
@@ -110,7 +106,7 @@ void removeDoctor(int id) {
         prev->next = current->next;
     }
 
-    printf("Doctor '%s' (ID: %d) removed successfully.\n", current->name, id);
+    printf("Dokter '%s' (ID: %d) berhasil dihapus.\n", current->name, id);
     free(current);
     refreshDoctorID();
 }
@@ -118,61 +114,74 @@ void removeDoctor(int id) {
 // Menampilkan semua dokter dan informasinya
 void displayDoctors() {
     if (head == NULL) {
-        printf("\n*** No doctors in the list. ***\n");
+        printf("\n*** Tidak ada dokter dalam daftar. ***\n");
         return;
     }
 
-    const char *day_names[] = {"Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"};
-    const char *shift_names[] = {"Morning", "Afternoon", "Night"};
+    // --- PERUBAHAN DI SINI ---
+    // Nama hari diubah urutannya agar Senin menjadi yang pertama (indeks 0)
+    const char *nama_hari[] = {"Senin", "Selasa", "Rabu",  "Kamis",
+                               "Jumat", "Sabtu",  "Minggu"};
+    const char *nama_shift[] = {"Pagi", "Siang", "Malam"};
 
-    printf("\n--- Doctor List ---\n");
-    printf("%-5s %-25s %-15s %s\n", "ID", "Name", "Max Shifts/Wk",
-           "Unavailable Shifts");
+    printf("\n--- Daftar Dokter ---\n");
+    printf("%-5s %-25s %-15s %-25s %s\n", "ID", "Nama", "Maks Shift/Mgg",
+           "Shift Terjadwal/Minggu", "Shift Tidak Tersedia");
     printf("-------------------------------------------------------------------"
-           "-------------\n");
+           "----------------------\n");
 
     Doctor *current = head;
     while (current != NULL) {
-        // Tampilkan data dokter biasa
         printf("%-5d %-25s %-15d ", current->id, current->name,
                current->max_shifts_per_week);
+        printf("%-5d %-5d %-5d %-5d %-5d",
+               current->shifts_scheduled_per_week[0],
+               current->shifts_scheduled_per_week[1],
+               current->shifts_scheduled_per_week[2],
+               current->shifts_scheduled_per_week[3],
+               current->shifts_scheduled_per_week[4]);
 
         // Tampilkan preferensi (Hanya yang tidak bisa)
-        bool first_pref = true;
+        bool pref_pertama = true;
         for (int d = 0; d < NUM_DAYS_PER_WEEK; d++) {
             for (int s = 0; s < NUM_SHIFTS_PER_DAY; s++) {
                 if (current->preference[d][s] == 0) {
-                    if (!first_pref) {
+                    if (!pref_pertama) {
                         printf(", ");
                     }
-                    printf("%s %s", day_names[d], shift_names[s]);
-                    first_pref = false;
+                    printf("%s %s", nama_hari[d],
+                           nama_shift[s]); // Akan menampilkan nama hari yang
+                                           // benar
+                    pref_pertama = false;
                 }
             }
+        }
+        if (pref_pertama) {
+            printf("Tidak ada");
         }
         printf("\n");
         current = current->next;
     }
     printf("-------------------------------------------------------------------"
-           "-------------\n");
+           "----------------------\n");
 }
 
 // Buat preferensi seorang dokter untuk shift tertentu
 void setDoctorPreference(int doctor_id, int day, int shift, int can_do) {
     if (day < 0 || day >= NUM_DAYS_PER_WEEK || shift < 0 ||
         shift >= NUM_SHIFTS_PER_DAY) {
-        printf("Invalid day or shift type provided.\n");
+        printf("Hari atau jenis shift yang diberikan tidak valid.\n");
         return;
     }
 
     Doctor *doctor = findDoctorById(doctor_id);
     if (doctor == NULL) {
-        printf("Doctor with ID %d not found.\n", doctor_id);
+        printf("Dokter dengan ID %d tidak ditemukan.\n", doctor_id);
         return;
     }
 
     doctor->preference[day][shift] = can_do;
-    printf("Preference for Doctor %s updated.\n", doctor->name);
+    printf("Preferensi untuk Dokter %s telah diperbarui.\n", doctor->name);
 }
 
 // Free semua memori list dokter
@@ -189,6 +198,8 @@ void freeDoctorList() {
 
 // Cari dokter berdasarkan ID
 Doctor *findDoctorById(int id) {
+    if (id <= 0)
+        return NULL;
     Doctor *current = head;
     while (current != NULL) {
         if (current->id == id) {
@@ -215,16 +226,16 @@ Doctor *findDoctorByName(const char *name) {
 void updateDoctor(int id, const char *new_name, int new_max_shifts) {
     Doctor *doctor = findDoctorById(id);
     if (doctor != NULL) {
-        // Only update name if a new one is provided
-        if (strlen(new_name) > 0) {
+        if (new_name != NULL && strlen(new_name) > 0) {
             strncpy(doctor->name, new_name, MAX_NAME_LENGTH - 1);
             doctor->name[MAX_NAME_LENGTH - 1] = '\0';
         }
-        // Only update shifts if a positive value is given
         if (new_max_shifts > 0) {
             doctor->max_shifts_per_week = new_max_shifts;
         }
     } else {
-        printf("Error: Could not find doctor with ID %d to update.\n", id);
+        printf("Kesalahan: Tidak dapat menemukan dokter dengan ID %d untuk "
+               "diperbarui.\n",
+               id);
     }
 }
