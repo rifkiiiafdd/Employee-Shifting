@@ -55,6 +55,9 @@ void freeDoctorList();
 // ada.
 void refreshDoctorID();
 
+// Memperbarui ID dokter
+void refreshDoctorIDandSchedule();
+
 // Mencari dokter dalam daftar berdasarkan ID uniknya.
 Doctor *findDoctorById(int id);
 

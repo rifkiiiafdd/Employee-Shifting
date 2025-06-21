@@ -85,6 +85,44 @@ void refreshDoctorID() {
     next_doctor_id = max_id + 1;
 }
 
+void refreshDoctorIDandSchedule() {
+    if (!head) {
+        next_doctor_id = 1;
+        return;
+    }
+
+    int count = 0;
+    for (Doctor *d = head; d; d = d->next)
+        count++;
+
+    int *old_ids = malloc(sizeof(int) * count);
+    int *new_ids = malloc(sizeof(int) * count);
+
+    int i = 0;
+    for (Doctor *d = head; d; d = d->next, i++) {
+        old_ids[i] = d->id;
+        new_ids[i] = i + 1;
+        d->id = i + 1;
+    }
+    next_doctor_id = count + 1;
+
+    for (int d = 0; d < NUM_DAYS; d++) {
+        for (int s = 0; s < NUM_SHIFTS_PER_DAY; s++) {
+            if (schedule[d][s] != 0) {
+                for (int j = 0; j < count; j++) {
+                    if (schedule[d][s] == old_ids[j]) {
+                        schedule[d][s] = new_ids[j];
+                        break;
+                    }
+                }
+            }
+        }
+    }
+
+    free(old_ids);
+    free(new_ids);
+}
+
 // Menghapus dokter dari linked list berdasarkan ID
 void removeDoctor(int id) {
     Doctor *current = head;
@@ -96,19 +134,31 @@ void removeDoctor(int id) {
     }
 
     if (current == NULL) {
-        printf("Dokter (ID: %d) tidak ditemukan.\n", id);
+        printf("Doctor with ID %d not found.\n", id);
         return;
     }
 
+    // Step 1: Scrub the schedule of the doctor being removed.
+    for (int d = 0; d < NUM_DAYS; d++) {
+        for (int s = 0; s < NUM_SHIFTS_PER_DAY; s++) {
+            if (schedule[d][s] == id) {
+                schedule[d][s] = 0; // Unassign shift
+            }
+        }
+    }
+
+    // Step 2: Remove the doctor from the linked list.
     if (prev == NULL) {
-        head = current->next; // Removing the head node
+        head = current->next;
     } else {
         prev->next = current->next;
     }
 
-    printf("Dokter '%s' (ID: %d) berhasil dihapus.\n", current->name, id);
+    printf("Doctor '%s' (ID: %d) successfully removed.\n", current->name, id);
     free(current);
-    refreshDoctorID();
+
+    // Step 3: Resequence all remaining doctor IDs and update the schedule.
+    refreshDoctorIDandSchedule();
 }
 
 // Menampilkan semua dokter dan informasinya

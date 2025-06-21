@@ -1,0 +1,630 @@
+
+#include <gtk/gtk.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <time.h>
+
+#include "csv_utils.h"
+#include "doctor_list.h"
+#include "scheduler.h"
+
+/*******************************************************************************
+ * SECTION 1: ENUMS & GLOBAL WIDGETS
+ ******************************************************************************/
+enum {
+    COL_ID = 0,
+    COL_NAME,
+    COL_MAX_SHIFTS,
+    COL_SHIFTS_PER_WEEK,
+    COL_TOTAL_SHIFTS,
+    COL_UNAVAILABILITY,
+    NUM_DOCTOR_COLS
+};
+enum {
+    COL_DAY_INFO = 0,
+    COL_SHIFT_MORNING,
+    COL_SHIFT_AFTERNOON,
+    COL_SHIFT_NIGHT,
+    NUM_SCHEDULE_COLS
+};
+enum {
+    COL_CONFLICT_ID = 0,
+    COL_CONFLICT_NAME,
+    COL_CONFLICT_DAY,
+    COL_CONFLICT_SHIFT,
+    COL_CONFLICT_REASON,
+    NUM_CONFLICT_COLS
+};
+
+GtkWidget *main_window, *stack;
+GtkWidget *doctor_tree_view, *schedule_tree_view, *conflict_tree_view,
+    *doctor_schedule_tree_view;
+GtkWidget *doctor_schedule_info_label;
+
+/*******************************************************************************
+ * SECTION 2: PROTOTYPES
+ ******************************************************************************/
+void populate_doctor_table();
+void populate_schedule_table_range(int start_day, int num_days);
+void populate_doctor_schedule_table(int doc_id, int mode, int week, int day);
+void populate_conflict_table();
+void show_dialog(const gchar *title, const gchar *message, GtkMessageType type);
+void recalculate_all_doctor_shift_counts();
+
+/*******************************************************************************
+ * SECTION 3: CORE LOGIC & DIALOGS
+ ******************************************************************************/
+
+static void do_add_doctor() {
+    GtkWidget *dialog, *content_area, *grid, *name_entry, *shifts_spin;
+    dialog = gtk_dialog_new_with_buttons(
+        "Tambah Dokter", GTK_WINDOW(main_window),
+        GTK_DIALOG_MODAL | GTK_DIALOG_DESTROY_WITH_PARENT, "_Batal",
+        GTK_RESPONSE_CANCEL, "_Tambah", GTK_RESPONSE_ACCEPT, NULL);
+    content_area = gtk_dialog_get_content_area(GTK_DIALOG(dialog));
+    grid = gtk_grid_new();
+    gtk_grid_set_column_spacing(GTK_GRID(grid), 10);
+    gtk_grid_set_row_spacing(GTK_GRID(grid), 10);
+    gtk_container_set_border_width(GTK_CONTAINER(grid), 15);
+    gtk_container_add(GTK_CONTAINER(content_area), grid);
+
+    name_entry = gtk_entry_new();
+    GtkAdjustment *adj = gtk_adjustment_new(5.0, 1.0, 21.0, 1.0, 5.0, 0.0);
+    shifts_spin = gtk_spin_button_new(adj, 1.0, 0);
+
+    gtk_grid_attach(GTK_GRID(grid), gtk_label_new("Nama Dokter:"), 0, 0, 1, 1);
+    gtk_grid_attach(GTK_GRID(grid), name_entry, 1, 0, 1, 1);
+    gtk_grid_attach(GTK_GRID(grid), gtk_label_new("Maks Shift/Minggu:"), 0, 1,
+                    1, 1);
+    gtk_grid_attach(GTK_GRID(grid), shifts_spin, 1, 1, 1, 1);
+
+    gtk_widget_show_all(dialog);
+    if (gtk_dialog_run(GTK_DIALOG(dialog)) == GTK_RESPONSE_ACCEPT) {
+        const char *name = gtk_entry_get_text(GTK_ENTRY(name_entry));
+        int max_shifts =
+            gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(shifts_spin));
+        if (strlen(name) > 0) {
+            addDoctor(name, max_shifts);
+            populate_doctor_table();
+            show_dialog("Sukses", "Dokter berhasil ditambahkan.",
+                        GTK_MESSAGE_INFO);
+        } else {
+            show_dialog("Error", "Nama tidak boleh kosong.", GTK_MESSAGE_ERROR);
+        }
+    }
+    gtk_widget_destroy(dialog);
+}
+
+static void do_edit_doctor() {
+    if (!head) {
+        show_dialog("Error", "Tidak ada dokter untuk diedit.",
+                    GTK_MESSAGE_ERROR);
+        return;
+    }
+
+    GtkWidget *dialog = gtk_dialog_new_with_buttons(
+        "Pilih Dokter", GTK_WINDOW(main_window),
+        GTK_DIALOG_MODAL | GTK_DIALOG_DESTROY_WITH_PARENT, "_Batal",
+        GTK_RESPONSE_CANCEL, "_Pilih", GTK_RESPONSE_OK, NULL);
+    GtkWidget *content_area = gtk_dialog_get_content_area(GTK_DIALOG(dialog));
+    GtkWidget *combo = gtk_combo_box_text_new();
+    for (Doctor *d = head; d; d = d->next)
+        gtk_combo_box_text_append(GTK_COMBO_BOX_TEXT(combo),
+                                  g_strdup_printf("%d", d->id), d->name);
+    gtk_combo_box_set_active(GTK_COMBO_BOX(combo), 0);
+    gtk_container_add(GTK_CONTAINER(content_area), combo);
+    gtk_widget_show_all(dialog);
+
+    if (gtk_dialog_run(GTK_DIALOG(dialog)) == GTK_RESPONSE_OK) {
+        int doc_id = atoi(gtk_combo_box_get_active_id(GTK_COMBO_BOX(combo)));
+        Doctor *doc = findDoctorById(doc_id);
+        gtk_widget_destroy(dialog);
+
+        GtkWidget *edit_dialog = gtk_dialog_new_with_buttons(
+            "Edit Dokter", GTK_WINDOW(main_window),
+            GTK_DIALOG_MODAL | GTK_DIALOG_DESTROY_WITH_PARENT, "_Batal",
+            GTK_RESPONSE_CANCEL, "_Simpan", GTK_RESPONSE_ACCEPT, NULL);
+        GtkWidget *edit_content =
+            gtk_dialog_get_content_area(GTK_DIALOG(edit_dialog));
+        GtkWidget *grid = gtk_grid_new();
+        gtk_grid_set_column_spacing(GTK_GRID(grid), 10);
+        gtk_grid_set_row_spacing(GTK_GRID(grid), 10);
+        gtk_container_add(GTK_CONTAINER(edit_content), grid);
+
+        GtkWidget *name_entry =
+            gtk_entry_new_with_buffer(gtk_entry_buffer_new(doc->name, -1));
+        GtkAdjustment *adj = gtk_adjustment_new(doc->max_shifts_per_week, 1.0,
+                                                21.0, 1.0, 5.0, 0.0);
+        GtkWidget *shifts_spin = gtk_spin_button_new(adj, 1.0, 0);
+
+        gtk_grid_attach(GTK_GRID(grid), gtk_label_new("Nama:"), 0, 0, 1, 1);
+        gtk_grid_attach(GTK_GRID(grid), name_entry, 1, 0, 1, 1);
+        gtk_grid_attach(GTK_GRID(grid), gtk_label_new("Maks Shift/Mgg:"), 0, 1,
+                        1, 1);
+        gtk_grid_attach(GTK_GRID(grid), shifts_spin, 1, 1, 1, 1);
+
+        gtk_widget_show_all(edit_dialog);
+        if (gtk_dialog_run(GTK_DIALOG(edit_dialog)) == GTK_RESPONSE_ACCEPT) {
+            updateDoctor(
+                doc_id, gtk_entry_get_text(GTK_ENTRY(name_entry)),
+                gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(shifts_spin)));
+            populate_doctor_table();
+            show_dialog("Sukses", "Data dokter diperbarui.", GTK_MESSAGE_INFO);
+        }
+        gtk_widget_destroy(edit_dialog);
+    } else {
+        gtk_widget_destroy(dialog);
+    }
+}
+
+static void do_remove_doctor() {
+    if (!head) {
+        show_dialog("Error", "Tidak ada dokter untuk dihapus.",
+                    GTK_MESSAGE_ERROR);
+        return;
+    }
+
+    GtkWidget *dialog = gtk_dialog_new_with_buttons(
+        "Pilih Dokter", GTK_WINDOW(main_window),
+        GTK_DIALOG_MODAL | GTK_DIALOG_DESTROY_WITH_PARENT, "_Batal",
+        GTK_RESPONSE_CANCEL, "_Pilih", GTK_RESPONSE_OK, NULL);
+    GtkWidget *content_area = gtk_dialog_get_content_area(GTK_DIALOG(dialog));
+    GtkWidget *combo = gtk_combo_box_text_new();
+    for (Doctor *d = head; d; d = d->next)
+        gtk_combo_box_text_append(GTK_COMBO_BOX_TEXT(combo),
+                                  g_strdup_printf("%d", d->id), d->name);
+    gtk_combo_box_set_active(GTK_COMBO_BOX(combo), 0);
+    gtk_container_add(GTK_CONTAINER(content_area), combo);
+    gtk_widget_show_all(dialog);
+
+    if (gtk_dialog_run(GTK_DIALOG(dialog)) == GTK_RESPONSE_OK) {
+        int doc_id = atoi(gtk_combo_box_get_active_id(GTK_COMBO_BOX(combo)));
+        removeDoctor(doc_id);
+        populate_doctor_table();
+        show_dialog("Sukses", "Dokter berhasil dihapus.", GTK_MESSAGE_INFO);
+    }
+    gtk_widget_destroy(dialog);
+}
+
+static void do_load_data() {
+    GtkWidget *dialog = gtk_file_chooser_dialog_new(
+        "Pilih Folder Data", GTK_WINDOW(main_window),
+        GTK_FILE_CHOOSER_ACTION_SELECT_FOLDER, "_Batal", GTK_RESPONSE_CANCEL,
+        "_Buka", GTK_RESPONSE_ACCEPT, NULL);
+    if (gtk_dialog_run(GTK_DIALOG(dialog)) == GTK_RESPONSE_ACCEPT) {
+        char *folder = gtk_file_chooser_get_filename(GTK_FILE_CHOOSER(dialog));
+        char doc_path[512], sched_path[512];
+        snprintf(doc_path, sizeof(doc_path), "%s/doctors.csv", folder);
+        snprintf(sched_path, sizeof(sched_path), "%s/schedule.csv", folder);
+
+        if (load_doctors_from_csv(doc_path)) {
+            load_schedule_from_csv(sched_path);
+            recalculate_all_doctor_shift_counts();
+            populate_doctor_table();
+            populate_schedule_table_range(0, NUM_DAYS);
+            gtk_stack_set_visible_child_name(GTK_STACK(stack), "doctors_view");
+            show_dialog("Sukses", "Data berhasil dimuat.", GTK_MESSAGE_INFO);
+        } else {
+            show_dialog("Error", "Gagal memuat doctors.csv.",
+                        GTK_MESSAGE_ERROR);
+        }
+        g_free(folder);
+    }
+    gtk_widget_destroy(dialog);
+}
+
+static void do_save_data() {
+    GtkWidget *dialog = gtk_file_chooser_dialog_new(
+        "Simpan Data ke Folder", GTK_WINDOW(main_window),
+        GTK_FILE_CHOOSER_ACTION_SELECT_FOLDER, "_Batal", GTK_RESPONSE_CANCEL,
+        "_Simpan", GTK_RESPONSE_ACCEPT, NULL);
+    if (gtk_dialog_run(GTK_DIALOG(dialog)) == GTK_RESPONSE_ACCEPT) {
+        char *folder = gtk_file_chooser_get_filename(GTK_FILE_CHOOSER(dialog));
+        char doc_path[512], sched_path[512];
+        snprintf(doc_path, sizeof(doc_path), "%s/doctors.csv", folder);
+        snprintf(sched_path, sizeof(sched_path), "%s/schedule.csv", folder);
+
+        if (save_doctors_to_csv(doc_path) && save_schedule_to_csv(sched_path)) {
+            show_dialog("Sukses", "Data berhasil disimpan.", GTK_MESSAGE_INFO);
+        } else {
+            show_dialog("Error", "Gagal menyimpan data.", GTK_MESSAGE_ERROR);
+        }
+        g_free(folder);
+    }
+    gtk_widget_destroy(dialog);
+}
+
+static void show_schedule_dialog(gboolean for_doctor) {
+    const char *title =
+        for_doctor ? "Pilih Jadwal Dokter" : "Pilih Jangkauan Jadwal";
+    GtkWidget *dialog = gtk_dialog_new_with_buttons(
+        title, GTK_WINDOW(main_window),
+        GTK_DIALOG_MODAL | GTK_DIALOG_DESTROY_WITH_PARENT, "_Batal",
+        GTK_RESPONSE_CANCEL, "_Tampilkan", GTK_RESPONSE_OK, NULL);
+    GtkWidget *content = gtk_dialog_get_content_area(GTK_DIALOG(dialog));
+    GtkWidget *box = gtk_box_new(GTK_ORIENTATION_VERTICAL, 10);
+    gtk_container_add(GTK_CONTAINER(content), box);
+
+    GtkWidget *doctor_combo = NULL;
+    if (for_doctor) {
+        if (!head) {
+            show_dialog("Error", "Tidak ada dokter.", GTK_MESSAGE_ERROR);
+            gtk_widget_destroy(dialog);
+            return;
+        }
+        doctor_combo = gtk_combo_box_text_new();
+        for (Doctor *d = head; d; d = d->next)
+            gtk_combo_box_text_append(GTK_COMBO_BOX_TEXT(doctor_combo),
+                                      g_strdup_printf("%d", d->id), d->name);
+        gtk_combo_box_set_active(GTK_COMBO_BOX(doctor_combo), 0);
+        gtk_box_pack_start(GTK_BOX(box), doctor_combo, FALSE, FALSE, 0);
+    }
+
+    GtkWidget *radio_month =
+        gtk_radio_button_new_with_label(NULL, "Tampilkan 30 Hari");
+    GtkWidget *radio_week = gtk_radio_button_new_with_label_from_widget(
+        GTK_RADIO_BUTTON(radio_month), "Per Minggu");
+    GtkWidget *radio_day = gtk_radio_button_new_with_label_from_widget(
+        GTK_RADIO_BUTTON(radio_month), "Per Hari");
+
+    GtkAdjustment *adj_week = gtk_adjustment_new(1, 1, NUM_WEEKS, 1, 0, 0);
+    GtkWidget *week_spin = gtk_spin_button_new(adj_week, 1, 0);
+    GtkAdjustment *adj_day =
+        gtk_adjustment_new(1, 1, NUM_DAYS_PER_WEEK, 1, 0, 0);
+    GtkWidget *day_spin = gtk_spin_button_new(adj_day, 1, 0);
+
+    gtk_box_pack_start(GTK_BOX(box), radio_month, FALSE, FALSE, 0);
+    gtk_box_pack_start(GTK_BOX(box), radio_week, FALSE, FALSE, 0);
+    gtk_box_pack_start(GTK_BOX(box), radio_day, FALSE, FALSE, 0);
+
+    GtkWidget *grid = gtk_grid_new();
+    gtk_grid_set_column_spacing(GTK_GRID(grid), 5);
+    gtk_grid_attach(GTK_GRID(grid), gtk_label_new("Minggu:"), 0, 0, 1, 1);
+    gtk_grid_attach(GTK_GRID(grid), week_spin, 1, 0, 1, 1);
+    gtk_grid_attach(GTK_GRID(grid), gtk_label_new("Hari:"), 2, 0, 1, 1);
+    gtk_grid_attach(GTK_GRID(grid), day_spin, 3, 0, 1, 1);
+    gtk_box_pack_start(GTK_BOX(box), grid, FALSE, FALSE, 0);
+
+    gtk_widget_show_all(dialog);
+    if (gtk_dialog_run(GTK_DIALOG(dialog)) == GTK_RESPONSE_OK) {
+        int week = gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(week_spin));
+        int day = gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(day_spin));
+        int doc_id =
+            for_doctor
+                ? atoi(gtk_combo_box_get_active_id(GTK_COMBO_BOX(doctor_combo)))
+                : -1;
+
+        int mode = 0; // 0=month, 1=week, 2=day
+        if (gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(radio_week)))
+            mode = 1;
+        if (gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(radio_day)))
+            mode = 2;
+
+        if (for_doctor) {
+            populate_doctor_schedule_table(doc_id, mode, week, day);
+            gtk_stack_set_visible_child_name(GTK_STACK(stack),
+                                             "doctor_schedule_view");
+        } else {
+            if (mode == 0)
+                populate_schedule_table_range(0, NUM_DAYS);
+            if (mode == 1)
+                populate_schedule_table_range((week - 1) * NUM_DAYS_PER_WEEK,
+                                              NUM_DAYS_PER_WEEK);
+            if (mode == 2)
+                populate_schedule_table_range(
+                    (week - 1) * NUM_DAYS_PER_WEEK + (day - 1), 1);
+            gtk_stack_set_visible_child_name(GTK_STACK(stack), "schedule_view");
+        }
+    }
+    gtk_widget_destroy(dialog);
+}
+
+/*******************************************************************************
+ * SECTION 4: SINGLE EVENT HANDLER
+ ******************************************************************************/
+static void on_action_button_clicked(GtkButton *button, gpointer user_data) {
+    const char *action = (const char *)user_data;
+    if (strcmp(action, "display_docs") == 0) {
+        populate_doctor_table();
+        gtk_stack_set_visible_child_name(GTK_STACK(stack), "doctors_view");
+    } else if (strcmp(action, "add_doctor") == 0) {
+        do_add_doctor();
+    } else if (strcmp(action, "edit_doctor") == 0) {
+        do_edit_doctor();
+    } else if (strcmp(action, "remove_doctor") == 0) {
+        do_remove_doctor();
+    } else if (strcmp(action, "display_overall_schedule") == 0) {
+        show_schedule_dialog(FALSE);
+    } else if (strcmp(action, "display_doctor_schedule") == 0) {
+        show_schedule_dialog(TRUE);
+    } else if (strcmp(action, "view_conflicts") == 0) {
+        populate_conflict_table();
+        gtk_stack_set_visible_child_name(GTK_STACK(stack), "conflicts_view");
+    } else if (strcmp(action, "generate_schedule") == 0) {
+        if (!head) {
+            show_dialog("Error", "Tidak ada dokter.", GTK_MESSAGE_ERROR);
+            return;
+        }
+        generate_schedule();
+        populate_doctor_table();
+        show_dialog("Sukses", "Jadwal baru telah dibuat.", GTK_MESSAGE_INFO);
+    } else if (strcmp(action, "load_data") == 0) {
+        do_load_data();
+    } else if (strcmp(action, "save_data") == 0) {
+        do_save_data();
+    }
+}
+
+/*******************************************************************************
+ * SECTION 5: UI CREATION
+ ******************************************************************************/
+GtkWidget *create_view(const char **titles, int n_cols, GType *types) {
+    GtkListStore *store = gtk_list_store_newv(n_cols, types);
+    GtkWidget *tree_view = gtk_tree_view_new_with_model(GTK_TREE_MODEL(store));
+    g_object_unref(store);
+    gtk_tree_view_set_grid_lines(GTK_TREE_VIEW(tree_view),
+                                 GTK_TREE_VIEW_GRID_LINES_BOTH);
+    for (int i = 0; i < n_cols; i++) {
+        GtkTreeViewColumn *col = gtk_tree_view_column_new_with_attributes(
+            titles[i], gtk_cell_renderer_text_new(), "text", i, NULL);
+        gtk_tree_view_append_column(GTK_TREE_VIEW(tree_view), col);
+    }
+    GtkWidget *sw = gtk_scrolled_window_new(NULL, NULL);
+    gtk_container_add(GTK_CONTAINER(sw), tree_view);
+    return sw;
+}
+
+void create_main_window() {
+    main_window = gtk_window_new(GTK_WINDOW_TOPLEVEL);
+    gtk_window_set_title(GTK_WINDOW(main_window), "Sistem Penjadwalan Dokter");
+    gtk_window_set_default_size(GTK_WINDOW(main_window), 1200, 750);
+    g_signal_connect(main_window, "destroy", G_CALLBACK(gtk_main_quit), NULL);
+
+    GtkWidget *grid = gtk_grid_new();
+    gtk_grid_set_column_spacing(GTK_GRID(grid), 10);
+    gtk_container_set_border_width(GTK_CONTAINER(grid), 10);
+    gtk_container_add(GTK_CONTAINER(main_window), grid);
+
+    GtkWidget *action_box = gtk_box_new(GTK_ORIENTATION_VERTICAL, 8);
+    gtk_grid_attach(GTK_GRID(grid), action_box, 0, 0, 1, 1);
+
+    const char *actions[][2] = {
+        {"Tampilkan Dokter", "display_docs"},
+        {"Tambah Dokter", "add_doctor"},
+        {"Edit Dokter", "edit_doctor"},
+        {"Hapus Dokter", "remove_doctor"},
+        {"---", NULL},
+        {"Jadwal Keseluruhan", "display_overall_schedule"},
+        {"Jadwal Dokter", "display_doctor_schedule"},
+        {"---", NULL},
+        {"Tampilkan Konflik", "view_conflicts"},
+        {"Buat Jadwal Otomatis", "generate_schedule"},
+        {"---", NULL},
+        {"Muat Data", "load_data"},
+        {"Simpan Data", "save_data"}};
+
+    for (int i = 0; i < G_N_ELEMENTS(actions); ++i) {
+        if (actions[i][1] == NULL) {
+            gtk_box_pack_start(GTK_BOX(action_box),
+                               gtk_separator_new(GTK_ORIENTATION_HORIZONTAL),
+                               FALSE, FALSE, 5);
+        } else {
+            GtkWidget *button = gtk_button_new_with_label(actions[i][0]);
+            g_signal_connect(button, "clicked",
+                             G_CALLBACK(on_action_button_clicked),
+                             (gpointer)actions[i][1]);
+            gtk_box_pack_start(GTK_BOX(action_box), button, FALSE, FALSE, 0);
+        }
+    }
+
+    stack = gtk_stack_new();
+    gtk_widget_set_hexpand(stack, TRUE);
+    gtk_widget_set_vexpand(stack, TRUE);
+    gtk_grid_attach(GTK_GRID(grid), stack, 1, 0, 1, 1);
+
+    // Define views
+    const char *doc_titles[] = {"ID",        "Nama",  "Maks/Mgg",
+                                "Shift/Mgg", "Total", "Tidak Tersedia"};
+    GType doc_types[] = {G_TYPE_INT,    G_TYPE_STRING, G_TYPE_INT,
+                         G_TYPE_STRING, G_TYPE_INT,    G_TYPE_STRING};
+    GtkWidget *doctor_view_sw =
+        create_view(doc_titles, NUM_DOCTOR_COLS, doc_types);
+    doctor_tree_view = gtk_bin_get_child(GTK_BIN(doctor_view_sw));
+
+    const char *sched_titles[] = {"Hari", "Pagi", "Siang", "Malam"};
+    GType sched_types[] = {G_TYPE_STRING, G_TYPE_STRING, G_TYPE_STRING,
+                           G_TYPE_STRING};
+    GtkWidget *schedule_view_sw =
+        create_view(sched_titles, NUM_SCHEDULE_COLS, sched_types);
+    schedule_tree_view = gtk_bin_get_child(GTK_BIN(schedule_view_sw));
+
+    GtkWidget *doctor_schedule_view_box =
+        gtk_box_new(GTK_ORIENTATION_VERTICAL, 5);
+    doctor_schedule_info_label = gtk_label_new("");
+    gtk_box_pack_start(GTK_BOX(doctor_schedule_view_box),
+                       doctor_schedule_info_label, FALSE, FALSE, 5);
+    GtkWidget *doctor_schedule_view_sw =
+        create_view(sched_titles, NUM_SCHEDULE_COLS, sched_types);
+    doctor_schedule_tree_view =
+        gtk_bin_get_child(GTK_BIN(doctor_schedule_view_sw));
+    gtk_box_pack_start(GTK_BOX(doctor_schedule_view_box),
+                       doctor_schedule_view_sw, TRUE, TRUE, 0);
+
+    const char *conflict_titles[] = {"ID", "Nama", "Hari", "Shift", "Alasan"};
+    GType conflict_types[] = {G_TYPE_INT, G_TYPE_STRING, G_TYPE_INT,
+                              G_TYPE_STRING, G_TYPE_STRING};
+    GtkWidget *conflict_view_sw =
+        create_view(conflict_titles, NUM_CONFLICT_COLS, conflict_types);
+    conflict_tree_view = gtk_bin_get_child(GTK_BIN(conflict_view_sw));
+
+    // Add views to stack
+    gtk_stack_add_named(GTK_STACK(stack), gtk_label_new("Selamat Datang!"),
+                        "welcome_view");
+    gtk_stack_add_named(GTK_STACK(stack), doctor_view_sw, "doctors_view");
+    gtk_stack_add_named(GTK_STACK(stack), schedule_view_sw, "schedule_view");
+    gtk_stack_add_named(GTK_STACK(stack), doctor_schedule_view_box,
+                        "doctor_schedule_view");
+    gtk_stack_add_named(GTK_STACK(stack), conflict_view_sw, "conflicts_view");
+}
+
+/*******************************************************************************
+ * SECTION 6: DATA POPULATION & UTILITIES
+ ******************************************************************************/
+
+void populate_doctor_table() {
+    GtkListStore *store = GTK_LIST_STORE(
+        gtk_tree_view_get_model(GTK_TREE_VIEW(doctor_tree_view)));
+    gtk_list_store_clear(store);
+    if (!head)
+        return;
+    for (Doctor *current = head; current; current = current->next) {
+        GtkTreeIter iter;
+        int total_shifts = 0;
+        GString *shifts_per_week_str = g_string_new("");
+        for (int w = 0; w < NUM_WEEKS; ++w) {
+            total_shifts += current->shifts_scheduled_per_week[w];
+            g_string_append_printf(shifts_per_week_str, "%d%s",
+                                   current->shifts_scheduled_per_week[w],
+                                   (w < NUM_WEEKS - 1) ? " / " : "");
+        }
+        gtk_list_store_append(store, &iter);
+        gtk_list_store_set(store, &iter, COL_ID, current->id, COL_NAME,
+                           current->name, COL_MAX_SHIFTS,
+                           current->max_shifts_per_week, COL_SHIFTS_PER_WEEK,
+                           shifts_per_week_str->str, COL_TOTAL_SHIFTS,
+                           total_shifts, COL_UNAVAILABILITY, "N/A", -1);
+        g_string_free(shifts_per_week_str, TRUE);
+    }
+}
+
+void populate_schedule_table_range(int start_day, int num_days) {
+    GtkListStore *store = GTK_LIST_STORE(
+        gtk_tree_view_get_model(GTK_TREE_VIEW(schedule_tree_view)));
+    gtk_list_store_clear(store);
+    const char *day_names[] = {"Senin", "Selasa", "Rabu",  "Kamis",
+                               "Jumat", "Sabtu",  "Minggu"};
+    int end_day = start_day + num_days;
+
+    for (int day = start_day; day < end_day; day++) {
+        GtkTreeIter iter;
+        if (day % 7 == 0) {
+            gtk_list_store_append(store, &iter);
+            gtk_list_store_set(
+                store, &iter, COL_DAY_INFO,
+                g_strdup_printf("--- Minggu %d ---", day / 7 + 1), -1);
+        }
+        char p[MAX_NAME_LENGTH + 4], s[MAX_NAME_LENGTH + 4],
+            m[MAX_NAME_LENGTH + 4];
+        Doctor *doc_p = findDoctorById(schedule[day][0]);
+        Doctor *doc_s = findDoctorById(schedule[day][1]);
+        Doctor *doc_m = findDoctorById(schedule[day][2]);
+        sprintf(p, "dr. %s", doc_p ? doc_p->name : "Kosong");
+        sprintf(s, "dr. %s", doc_s ? doc_s->name : "Kosong");
+        sprintf(m, "dr. %s", doc_m ? doc_m->name : "Kosong");
+        gtk_list_store_append(store, &iter);
+        gtk_list_store_set(store, &iter, COL_DAY_INFO, day_names[day % 7],
+                           COL_SHIFT_MORNING, p, COL_SHIFT_AFTERNOON, s,
+                           COL_SHIFT_NIGHT, m, -1);
+    }
+}
+
+void populate_doctor_schedule_table(int doc_id, int mode, int week,
+                                    int day_of_week) {
+    GtkListStore *store = GTK_LIST_STORE(
+        gtk_tree_view_get_model(GTK_TREE_VIEW(doctor_schedule_tree_view)));
+    gtk_list_store_clear(store);
+    Doctor *doc = findDoctorById(doc_id);
+    if (!doc)
+        return;
+
+    const char *day_names[] = {"Senin", "Selasa", "Rabu",  "Kamis",
+                               "Jumat", "Sabtu",  "Minggu"};
+    int start_day = 0, end_day = NUM_DAYS;
+    if (mode == 1) {
+        start_day = (week - 1) * 7;
+        end_day = start_day + 7;
+    }
+    if (mode == 2) {
+        start_day = (week - 1) * 7 + (day_of_week - 1);
+        end_day = start_day + 1;
+    }
+
+    for (int d = start_day; d < end_day; ++d) {
+        GtkTreeIter iter;
+        gtk_list_store_append(store, &iter);
+        const char *shift_status[3] = {"---", "---", "---"};
+        for (int s = 0; s < 3; ++s)
+            if (schedule[d][s] == doc_id)
+                shift_status[s] = "Jaga";
+        gtk_list_store_set(store, &iter, COL_DAY_INFO, day_names[d % 7],
+                           COL_SHIFT_MORNING, shift_status[0],
+                           COL_SHIFT_AFTERNOON, shift_status[1],
+                           COL_SHIFT_NIGHT, shift_status[2], -1);
+    }
+}
+
+void populate_conflict_table() {
+    GtkListStore *store = GTK_LIST_STORE(
+        gtk_tree_view_get_model(GTK_TREE_VIEW(conflict_tree_view)));
+    gtk_list_store_clear(store);
+    const char *shift_names[] = {"Pagi", "Siang", "Malam"};
+    // Assumes find_conflicts() is called before this, e.g. in generate_schedule
+    for (Conflict *c = chead; c; c = c->next) {
+        if (c->shift >= 0 && c->shift < NUM_SHIFTS_PER_DAY) {
+            GtkTreeIter iter;
+            gtk_list_store_append(store, &iter);
+            gtk_list_store_set(store, &iter, COL_CONFLICT_ID, c->id,
+                               COL_CONFLICT_NAME, c->name, COL_CONFLICT_DAY,
+                               c->hari + 1, COL_CONFLICT_SHIFT,
+                               shift_names[c->shift], COL_CONFLICT_REASON,
+                               "Jadwal tidak tersedia", -1);
+        }
+    }
+}
+
+void show_dialog(const gchar *title, const gchar *message,
+                 GtkMessageType type) {
+    GtkWidget *dialog = gtk_message_dialog_new(
+        GTK_WINDOW(main_window), GTK_DIALOG_DESTROY_WITH_PARENT, type,
+        GTK_BUTTONS_OK, "%s", message);
+    gtk_window_set_title(GTK_WINDOW(dialog), title);
+    gtk_dialog_run(GTK_DIALOG(dialog));
+    gtk_widget_destroy(dialog);
+}
+
+void recalculate_all_doctor_shift_counts() {
+    if (!head)
+        return;
+    for (Doctor *doc = head; doc; doc = doc->next) {
+        for (int i = 0; i < NUM_WEEKS; ++i)
+            doc->shifts_scheduled_per_week[i] = 0;
+    }
+    for (int day = 0; day < NUM_DAYS; ++day) {
+        for (int shift = 0; shift < NUM_SHIFTS_PER_DAY; ++shift) {
+            if (schedule[day][shift] > 0) {
+                Doctor *doc = findDoctorById(schedule[day][shift]);
+                if (doc)
+                    doc->shifts_scheduled_per_week[day / NUM_DAYS_PER_WEEK]++;
+            }
+        }
+    }
+}
+
+/*******************************************************************************
+ * SECTION 7: MAIN
+ ******************************************************************************/
+int main(int argc, char *argv[]) {
+    srand(time(NULL));
+    initialize_schedule();
+    gtk_init(&argc, &argv);
+    g_object_set(gtk_settings_get_default(),
+                 "gtk-application-prefer-dark-theme", TRUE, NULL);
+    create_main_window();
+    gtk_widget_show_all(main_window);
+    gtk_main();
+    freeDoctorList();
+    free_conflict_list();
+    printf("Aplikasi ditutup, memori telah dibebaskan.\n");
+    return 0;
+}

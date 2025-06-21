@@ -1,37 +1,45 @@
-# Nama file executable yang akan dihasilkan
-TARGET = doctor_scheduler_gui
+# Target executable name
+TARGET = build/doctor_scheduler_gui
 
-# Compiler yang digunakan
+# Compiler
 CC = gcc
 
-# File-file source code .c yang akan dikompilasi
-# PERHATIKAN: main.c (versi CLI) tidak disertakan untuk menghindari konflik
-SRCS = gui_main.c src/doctor_list.c src/scheduler.c src/csv_utils.c
+# Source files
+SRCS = src/main.c src/doctor_list.c src/scheduler.c src/csv_utils.c
 
-# Objek file yang akan dibuat dari source
-OBJS = $(SRCS:.c=.o)
+# Object files
+OBJS = $(patsubst src/%.c,build/%.o,$(SRCS))
 
-# Flags untuk compiler C
-# pkg-config akan otomatis menambahkan flag yang dibutuhkan untuk GTK 3
-CFLAGS = -Wall -g $(shell pkg-config --cflags gtk+-3.0)
+# Include paths
+INCLUDES = -Iinclude -Isrc
 
-# Flags untuk linker
-# pkg-config akan otomatis menambahkan library yang dibutuhkan untuk GTK 3
-LDFLAGS = $(shell pkg-config --libs gtk+-3.0)
+# Compiler flags
+CFLAGS = -Wall -g $(shell pkg-config --cflags gtk+-3.0) $(INCLUDES) -fPIC
 
-# Aturan default: kompilasi semuanya
-all: $(TARGET)
+# Linker flags
+LDFLAGS = $(shell pkg-config --libs gtk+-3.0) -no-pie
 
-# Aturan untuk membuat file executable
+# Default target
+all: build_dir $(TARGET)
+
+# Create build directory
+build_dir:
+	mkdir -p build
+
+# Link executable
 $(TARGET): $(OBJS)
 	$(CC) $(OBJS) -o $(TARGET) $(LDFLAGS)
 
-# Aturan untuk mengompilasi file .c menjadi .o
-%.o: %.c
+# Compile source files
+build/%.o: src/%.c
 	$(CC) $(CFLAGS) -c $< -o $@
 
-# Aturan untuk membersihkan file hasil kompilasi
+# Clean build artifacts
 clean:
-	rm -f $(OBJS) $(TARGET)
+	rm -rf build
 
-.PHONY: all clean
+# Install dependencies
+deps:
+	sudo apt-get install -y build-essential pkg-config libgtk-3-dev
+
+.PHONY: all clean build_dir deps

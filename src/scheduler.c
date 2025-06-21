@@ -1,25 +1,22 @@
 #include "scheduler.h"
 #include "doctor_list.h"
-#include <time.h> // Diperlukan untuk srand
+#include <time.h>
 
 Conflict *chead = NULL;
 
 // --- Helper Functions ---
-// Fungsi ini bersifat 'static' karena hanya digunakan di dalam file ini
 static int check_preference(int id, int day, int shift) {
     Doctor *doctor = findDoctorById(id);
-    // FIX: Ditambahkan NULL check untuk keamanan
     if (!doctor) {
-        return 0; // Jika dokter tidak ada, dianggap tidak bisa
+        return 0;
     }
-    // day % NUM_DAYS_PER_WEEK untuk mendapatkan hari dalam seminggu (0-6)
     return doctor->preference[day % NUM_DAYS_PER_WEEK][shift];
 }
 
 static void conflict_schedule(int hari, int shift, int id, const char *name) {
     Conflict *newnode = (Conflict *)malloc(sizeof(Conflict));
     if (!newnode)
-        return; // Gagal alokasi memori
+        return;
 
     newnode->hari = hari;
     newnode->shift = shift;
@@ -31,7 +28,6 @@ static void conflict_schedule(int hari, int shift, int id, const char *name) {
     chead = newnode;
 }
 
-// Fungsi untuk membersihkan list conflict untuk mencegah memory leak
 void free_conflict_list() {
     Conflict *current = chead;
     Conflict *next_node;
@@ -43,11 +39,11 @@ void free_conflict_list() {
     chead = NULL;
 }
 
-// Rifki (dengan perbaikan)
+// Rifki
 void generate_schedule() {
     // 1. Persiapan
     initialize_schedule();
-    free_conflict_list(); // Bersihkan konflik dari generasi sebelumnya
+    free_conflict_list(); // Free Konflik
 
     int doctor_count = 0;
     for (Doctor *d = head; d != NULL; d = d->next) {
@@ -70,7 +66,7 @@ void generate_schedule() {
 
             while (ctr <
                    doctor_count *
-                       2) { // Loop dengan batasan untuk mencegah infinite loop
+                       2) { // Loop dengan batasan
                 int random_id =
                     (rand() % doctor_count) + 1; // Hasilkan ID acak yang valid
                 Doctor *temp = findDoctorById(random_id);
@@ -126,7 +122,6 @@ void generate_schedule() {
                 alternatif_found = 0;
 
                 int start_of_week = i - (i % NUM_DAYS_PER_WEEK);
-                // FIX: Logika perulangan yang salah diperbaiki
                 for (int k = start_of_week;
                      k < start_of_week + NUM_DAYS_PER_WEEK; k++) {
                     for (int l = 0; l < 3; l++) {
@@ -158,7 +153,7 @@ void generate_schedule() {
             if (schedule[i][j] != 0 &&
                 check_preference(schedule[i][j], i, j) == 0) {
                 Doctor *doc = findDoctorById(schedule[i][j]);
-                if (doc) { // FIX: Pastikan dokter ada sebelum mengakses nama
+                if (doc) {
                     conflict_schedule(i + 1, j + 1, doc->id, doc->name);
                 }
             }
@@ -218,12 +213,12 @@ void get_doctor_schedule_month(
     }
 }
 
-// --- Untuk Semua Dokter (Bang Vyto - Modified) ---
+// --- Untuk Semua Dokter (Bang Vyto) ---
 void get_all_doctors_schedule_day(int week, int day,
                                   int out_doctor_ids[NUM_SHIFTS_PER_DAY]) {
     if (week < 1 || week > NUM_WEEKS || day < 0 || day >= NUM_DAYS_PER_WEEK) {
         for (int s = 0; s < NUM_SHIFTS_PER_DAY; s++) {
-            out_doctor_ids[s] = 0; // Return empty schedule
+            out_doctor_ids[s] = 0;
         }
         return;
     }
@@ -265,7 +260,7 @@ void get_all_doctors_schedule_month(
 // Bang Vyto
 void getScheduleDay(int mingguKe, int hariKe) {
     int index = (mingguKe - 1) * 7 + (hariKe - 1);
-    if (index < 0 || index >= NUM_DAYS) { // Check against total days
+    if (index < 0 || index >= NUM_DAYS) {
         printf("Hari tidak valid.\n");
         return;
     }
@@ -273,7 +268,6 @@ void getScheduleDay(int mingguKe, int hariKe) {
     printf("{ ");
     for (int i = 0; i < NUM_SHIFTS_PER_DAY; i++) {
         struct Doctor *d = findDoctorById(schedule[index][i]);
-        // Display "Kosong" if doctor not found or ID is 0
         printf("\"%s\"", (d ? d->name : "Kosong"));
         if (i < NUM_SHIFTS_PER_DAY - 1)
             printf(", ");

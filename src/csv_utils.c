@@ -114,7 +114,7 @@ bool load_doctors_from_csv(const char *filepath) {
     }
 
     fclose(file);
-    refreshDoctorID();
+    refreshDoctorIDandSchedule();
     return true;
 }
 
