@@ -6,7 +6,7 @@ CC = gcc
 
 # File-file source code .c yang akan dikompilasi
 # PERHATIKAN: main.c (versi CLI) tidak disertakan untuk menghindari konflik
-SRCS = gui_main.c doctor_list.c scheduler.c csv_utils.c
+SRCS = gui_main.c src/doctor_list.c src/scheduler.c src/csv_utils.c
 
 # Objek file yang akan dibuat dari source
 OBJS = $(SRCS:.c=.o)

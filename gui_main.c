@@ -4,9 +4,9 @@
 #include <string.h>
 #include <time.h>
 
-#include "csv_utils.h"
-#include "doctor_list.h"
-#include "scheduler.h"
+#include "include/csv_utils.h"
+#include "include/doctor_list.h"
+#include "include/scheduler.h"
 
 // Enum untuk kolom-kolom tabel
 enum { COL_ID = 0, COL_NAME, COL_MAX_SHIFTS, COL_SHIFTS_PER_WEEK, COL_UNAVAILABILITY, NUM_DOCTOR_COLS };

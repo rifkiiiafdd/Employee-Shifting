@@ -1,9 +1,9 @@
 // TEMPORARY MAIN UNTUK CLI
 // Fungsi Handler memang agak ribet, mau disimplifikasi lagi nanti
 
-#include "csv_utils.h"
-#include "doctor_list.h"
-#include "scheduler.h"
+#include "include/csv_utils.h"
+#include "include/doctor_list.h"
+#include "include/scheduler.h"
 #include <ctype.h>
 #include <stdio.h>
 #include <stdlib.h>

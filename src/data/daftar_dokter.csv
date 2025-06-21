@@ -1,4 +1,0 @@
-ID,Name,MaxShiftsPerWeek,Week1Scheduled,Week2Scheduled,Week3Scheduled,Week4Scheduled,Week5Scheduled,SunMorningPref,SunAfternoonPref,SunNightPref,MonMorningPref,MonAfternoonPref,MonNightPref,TueMorningPref,TueAfternoonPref,TueNightPref,WedMorningPref,WedAfternoonPref,WedNightPref,ThuMorningPref,ThuAfternoonPref,ThuNightPref,FriMorningPref,FriAfternoonPref,FriNightPref,SatMorningPref,SatAfternoonPref,SatNightPref
-1,"Test",22,0,0,0,0,0,1,1,1,1,1,1,1,0,1,1,1,1,1,1,0,0,1,1,1,1,1
-2,"Alis",33,0,0,0,0,0,1,0,1,1,1,1,1,0,1,1,1,1,1,1,1,1,1,1,1,1,1
-3,"test4",55,0,0,0,0,0,1,0,1,1,1,1,1,0,1,1,1,1,0,1,1,1,1,0,1,1,0
