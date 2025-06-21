@@ -12,7 +12,7 @@
 # How to Run
 Using GCC only:
 ```bash
-gcc -Wall -g -Iinclude -o scheduler src/main.c src/doctor_list.c src/csv_utils.c
+gcc -Wall -g -Iinclude -o scheduler src/*
 ```
 Using makefile
 ```bash
