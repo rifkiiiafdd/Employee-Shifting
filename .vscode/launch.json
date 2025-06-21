@@ -8,8 +8,13 @@
       "args": [],
       "stopAtEntry": false,
       "externalConsole": true,
+<<<<<<< HEAD
       "cwd": "d:/Campuss/#PMC/Employee-Shifting",
       "program": "d:/Campuss/#PMC/Employee-Shifting/build/Debug/outDebug",
+=======
+      "cwd": "d:/Campuss/Employee-Shifting/src",
+      "program": "d:/Campuss/Employee-Shifting/src/build/Debug/outDebug",
+>>>>>>> gui
       "MIMode": "gdb",
       "miDebuggerPath": "gdb",
       "setupCommands": [

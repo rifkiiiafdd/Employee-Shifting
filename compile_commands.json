@@ -1,0 +1,47 @@
+[
+  {
+    "arguments": [
+      "/usr/bin/gcc",
+      "-Wall",
+      "-g",
+      "-Iinclude",
+      "-c",
+      "-o",
+      "build/csv_utils.o",
+      "src/csv_utils.c"
+    ],
+    "directory": "/home/vicosilalahi/Documents/Employee-Shifting",
+    "file": "/home/vicosilalahi/Documents/Employee-Shifting/src/csv_utils.c",
+    "output": "/home/vicosilalahi/Documents/Employee-Shifting/build/csv_utils.o"
+  },
+  {
+    "arguments": [
+      "/usr/bin/gcc",
+      "-Wall",
+      "-g",
+      "-Iinclude",
+      "-c",
+      "-o",
+      "build/doctor_list.o",
+      "src/doctor_list.c"
+    ],
+    "directory": "/home/vicosilalahi/Documents/Employee-Shifting",
+    "file": "/home/vicosilalahi/Documents/Employee-Shifting/src/doctor_list.c",
+    "output": "/home/vicosilalahi/Documents/Employee-Shifting/build/doctor_list.o"
+  },
+  {
+    "arguments": [
+      "/usr/bin/gcc",
+      "-Wall",
+      "-g",
+      "-Iinclude",
+      "-c",
+      "-o",
+      "build/main.o",
+      "src/main.c"
+    ],
+    "directory": "/home/vicosilalahi/Documents/Employee-Shifting",
+    "file": "/home/vicosilalahi/Documents/Employee-Shifting/src/main.c",
+    "output": "/home/vicosilalahi/Documents/Employee-Shifting/build/main.o"
+  }
+]

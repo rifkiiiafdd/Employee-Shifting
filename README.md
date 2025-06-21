@@ -11,9 +11,6 @@ PPT : https://www.canva.com/design/DAGq378tplA/5mHaHqSay_v_bgjHD1x0HQ/edit?utm_c
 Laporan : https://itbdsti-my.sharepoint.com/:w:/r/personal/13223077_mahasiswa_itb_ac_id/_layouts/15/Doc.aspx?sourcedoc=%7B1AA37945-56FC-4404-BAA2-3412DE082BA5%7D&file=Document.docx&action=default&mobileredirect=true
 draw io : https://drive.google.com/file/d/1CAYvvlZLIFzrJeAhUlGKcokvQ03BG_1N/view
 
-> reference :
-
-https://github.com/AvlKP/EL2008-PMC-Tubes
 
 
 # About
@@ -23,3 +20,17 @@ https://github.com/AvlKP/EL2008-PMC-Tubes
 # Features
 
 # How to Run
+Using GCC only:
+```bash
+gcc -Wall -g -Iinclude -o scheduler src/*
+```
+Using makefile
+```bash
+make clean
+make run
+
+```
+Or using bear
+```bash
+./build.sh
+```
