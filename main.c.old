@@ -330,7 +330,8 @@ void display_doctor_day() {
     }
 
     int daily_shifts[NUM_SHIFTS_PER_DAY];
-    int shift_count = getDoctorScheduleDay(week, day, docId, daily_shifts);
+    int shift_count;
+    getDoctorScheduleDay(week, day, docId, daily_shifts, &shift_count);
 
     const char *day_names[] = {"Senin", "Selasa", "Rabu",  "Kamis",
                                "Jumat", "Sabtu",  "Minggu"};
@@ -557,14 +558,17 @@ void handle_remove_doctor() {
     printf("\n--- Hapus Dokter ---\n");
     displayDoctors();
     printf("\nMasukkan ID dokter yang akan dihapus: ");
-    int id = get_integer_input();
+    // int id = get_integer_input();
+    int id;
+    scanf("%d", &id);
 
     Doctor *doctor = findDoctorById(id);
     if (doctor) {
         printf("Apakah Anda yakin ingin menghapus Dr. %s (ID: %d)? (y/n): ",
                doctor->name, id);
         char buffer[10];
-        get_string_input(buffer, sizeof(buffer));
+        // get_string_input(buffer, sizeof(buffer));
+        scanf("%s", buffer);
         if (tolower(buffer[0]) == 'y') {
             removeDoctor(id);
         } else {
@@ -586,13 +590,14 @@ void handle_set_preferences(int doctor_id) {
     printf("\n--- Mengatur Preferensi untuk Dr. %s ---\n", doctor->name);
     printf("Untuk setiap shift, masukkan 1 untuk TERSEDIA atau 0 untuk TIDAK "
            "TERSEDIA.\n");
-    printf("Masukkan hari dari 0-6 (Senin=0, ... Minggu=6). Masukkan -1 untuk "
+    printf("Masukkan hari dari 1-7 (Senin=1, ... Minggu=7). Masukkan -1 untuk "
            "selesai.\n\n");
 
     while (1) {
-        int day, shift, can_do;
-        printf("Masukkan Hari (0-6) atau -1 untuk Selesai: ");
-        day = get_integer_input();
+        int day, shift, pref;
+        printf("Masukkan Hari (1-7) atau -1 untuk Selesai: ");
+        // day = get_integer_input() - 1;
+        scanf("%d", &day);
         if (day == -1)
             break;
         if (day < 0 || day >= NUM_DAYS_PER_WEEK) {
@@ -601,7 +606,8 @@ void handle_set_preferences(int doctor_id) {
         }
 
         printf("Masukkan Shift (0=Pagi, 1=Siang, 2=Malam): ");
-        shift = get_integer_input();
+        // shift = get_integer_input();
+        scanf("%d", &shift);
         if (shift < 0 || shift >= NUM_SHIFTS_PER_DAY) {
             printf("*** Shift tidak valid. Silakan coba lagi. ***\n");
             continue;
@@ -609,9 +615,11 @@ void handle_set_preferences(int doctor_id) {
 
         printf("Apakah Dr. %s tersedia untuk shift ini? (1=Ya, 0=Tidak): ",
                doctor->name);
-        can_do = get_integer_input();
-        if (can_do == 0 || can_do == 1) {
-            setDoctorPreference(doctor_id, day, shift, can_do);
+        // can_do = get_integer_input();
+        // pref = scanf(%d)
+        scanf("%d", &pref);
+        if (pref == 0 || pref == 1) {
+            setDoctorPreference(doctor_id, day, shift, pref);
         } else {
             printf("*** Ketersediaan tidak valid. Harap masukkan 0 atau 1. "
                    "***\n");
