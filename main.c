@@ -17,17 +17,17 @@
 #define PATH_SEPARATOR '/'
 #endif
 
-// Defines column widths for the schedule table
+// definisi lebar kolom untuk tampil jadwal
 #define DAY_LABEL_WIDTH 20
 #define SHIFT_COL_WIDTH 18
 
-// Core functions
+// prototype fungsi core
 void run_cli_app();
 void handle_schedule_display();
 void handle_doctor_management();
 void handle_data_operations();
 
-// Helper functions
+// fungsi penunjang
 int get_int(const char *prompt);
 void get_str(const char *prompt, char *buf, int size);
 bool confirm(const char *prompt);
@@ -200,7 +200,7 @@ void handle_schedule_display() {
         break;
     }
 
-    case 3: { // Jadwal harian
+    case 3: { // Jadwal Harian
         week = get_int("Masukkan minggu (1-5): ");
         day = get_int("Masukkan hari (1-7): ") - 1;
         if (week < 1 || week > NUM_WEEKS || day < 0 ||
@@ -226,7 +226,7 @@ void handle_schedule_display() {
         }
         break;
     }
-    case 4: { // Doctor full month
+    case 4: { // Jadwal dokter spesifik bulan
         doc = select_doctor();
         if (!doc)
             return;
@@ -254,7 +254,7 @@ void handle_schedule_display() {
         printf("\nTotal Shift Sebulan: %d\n", totalShift(doc->id));
         break;
     }
-    case 5: { // Doctor weekly
+    case 5: { // Jadwal dokter spesifik minggu
         doc = select_doctor();
         if (!doc)
             return;
@@ -281,7 +281,7 @@ void handle_schedule_display() {
                totalShiftWeek(week, doc->id));
         break;
     }
-    case 6: { // Doctor daily
+    case 6: { // Jadwal dokter spesifik harian
         doc = select_doctor();
         if (!doc)
             return;
@@ -374,7 +374,7 @@ void handle_doctor_management() {
             if (day < 1 || day > 7)
                 continue;
 
-            day--; // Adjust to 0-6 index
+            day--;
 
             int shift = get_int("Shift (1-3): ") - 1;
             if (shift < 0 || shift >= NUM_SHIFTS_PER_DAY)
@@ -407,7 +407,7 @@ void handle_data_operations() {
         strcpy(path, "data");
     }
 
-    // Create directory if it doesn't exist
+    // Buat direktori kalau gak ada
     struct stat st = {0};
     if (stat(path, &st) == -1) {
 #ifdef _WIN32
@@ -417,7 +417,7 @@ void handle_data_operations() {
 #endif
     }
 
-    // Build file paths safely
+    // file path
     char doc_path[512];
     char sched_path[512];
     snprintf(doc_path, sizeof(doc_path), "%s%cdoctors.csv", path,
@@ -454,13 +454,11 @@ void handle_data_operations() {
     }
 }
 
-// Simplified helper functions
 int get_int(const char *prompt) {
     char buf[100];
     int c;
     printf("%s", prompt);
     fgets(buf, sizeof(buf), stdin);
-    // Remove newline if present, otherwise clear buffer
     char *newline = strchr(buf, '\n');
     if (newline) {
         *newline = '\0';

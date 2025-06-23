@@ -31,6 +31,10 @@ K-02
 - Tampilkan jadwal secara menyeluruh atau spesifik dokter, untuk 1 bulan, 1 minggu, ataupun 1 hari.
 
 # How to Run
+Using GCC (FOR CLI)
+```bash
+gcc -Wall -g -Iinclude -o scheduler src/csv_utils.c src/doctor_list.c src/scheduler.c main.c && ./scheduler
+```
 Using makefile (Untuk Windows dan UNIX)
 ```bash
 make clean
