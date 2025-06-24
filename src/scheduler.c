@@ -59,15 +59,14 @@ void free_conflict_list() {
 
 // Fungsi utama untuk menghasilkan jadwal secara otomatis.
 void generate_schedule() {
-    // --- Tahap 1: Persiapan ---
-    initialize_schedule(); // Kosongkan jadwal lama
-    free_conflict_list();  // Kosongkan daftar konflik lama
+    // 1. Persiapan
+    initialize_schedule();
+    free_conflict_list(); // Bersihkan konflik dari generasi sebelumnya
 
-    // Hitung jumlah dokter yang ada
     int doctor_count = 0;
     for (Doctor *d = head; d != NULL; d = d->next) {
         doctor_count++;
-        // Reset juga counter shift per minggu untuk setiap dokter
+        // Reset shift mingguan
         for (int i = 0; i < NUM_WEEKS; i++)
             d->shifts_scheduled_per_week[i] = 0;
     }
@@ -77,87 +76,86 @@ void generate_schedule() {
         return;
     }
 
-    // --- Tahap 2: Penempatan Awal (Iterasi Acak) ---
-    // Loop untuk setiap hari dan setiap shift
+    // 2. Iterasi dan Penempatan Awal
     for (int i = 0; i < NUM_DAYS; i++) {
         for (int j = 0; j < NUM_SHIFTS_PER_DAY; j++) {
-            // Coba cari dokter yang cocok secara acak
+            int preference_focus = 1;
             int ctr = 0;
-            // Loop ini akan mencoba sebanyak (jumlah_dokter * 2) kali untuk
-            // menemukan dokter yang pas. Ini untuk mencegah infinite loop jika
-            // tidak ada dokter yang cocok.
-            while (ctr < doctor_count * 2) {
-                int random_id =
-                    (rand() % doctor_count) + 1; // Ambil ID dokter acak
+            int random_id =
+                    (rand() % doctor_count) + 1; // Hasilkan ID acak yang valid
+            while (ctr <
+                   doctor_count *
+                       2) { // Loop dengan batasan untuk mencegah infinite loop
                 Doctor *temp = findDoctorById(random_id);
                 if (!temp)
-                    continue; // Jika ID tidak valid (seharusnya tidak terjadi),
-                              // coba lagi
+                    continue; // Jika ID tidak valid, coba lagi
 
                 int week_of_day = i / NUM_DAYS_PER_WEEK;
-
-                // Cek apakah dokter masih punya kuota shift minggu ini
                 if (temp->shifts_scheduled_per_week[week_of_day] <
                     temp->max_shifts_per_week) {
-                    // Cek preferensi dokter
-                    if (check_preference(temp->id, i, j)) {
-                        schedule[i][j] = temp->id; // Jadwalkan dokter ini
+                    if ((check_preference(temp->id, i, j) &&
+                         preference_focus) ||
+                        !preference_focus) {
+                        schedule[i][j] = temp->id;
                         temp->shifts_scheduled_per_week[week_of_day]++;
-                        break; // Lanjut ke shift berikutnya
+                        break;
                     }
                 }
-                ctr++;
-            }
 
-            // Jika setelah percobaan acak slot masih kosong (misal karena semua
-            // yg terpilih acak tidak cocok preferensinya)
+                ctr++;
+                random_id++;
+                if (random_id > doctor_count) {
+                    random_id = 1;
+                }
+                if (ctr >= doctor_count && preference_focus == 1) {
+                    // Jika semua dokter sudah dicek dan tidak ada yang cocok
+                    // dengan preferensi, abaikan preferensi.
+                    preference_focus = 0;
+                }
+            }
             if (schedule[i][j] == 0) {
-                // Lakukan pencarian berurutan sebagai fallback, abaikan
-                // preferensi.
+                // Jika masih kosong, assign dokter manapun yang masih bisa
                 for (int k = 1; k <= doctor_count; k++) {
                     Doctor *fallback_doc = findDoctorById(k);
-                    int week_of_day = i / NUM_DAYS_PER_WEEK;
                     if (fallback_doc &&
-                        fallback_doc->shifts_scheduled_per_week[week_of_day] <
+                        fallback_doc
+                                ->shifts_scheduled_per_week[i /
+                                                            NUM_DAYS_PER_WEEK] <
                             fallback_doc->max_shifts_per_week) {
                         schedule[i][j] = fallback_doc->id;
-                        fallback_doc->shifts_scheduled_per_week[week_of_day]++;
-                        break; // Dapet dokter, lanjut.
+                        fallback_doc
+                            ->shifts_scheduled_per_week[i /
+                                                        NUM_DAYS_PER_WEEK]++;
+                        break;
                     }
                 }
             }
         }
     }
 
-    // --- Tahap 3: Optimasi Jadwal (Swapping) ---
-    // Tahap ini mencoba memperbaiki konflik dengan menukar jadwal antar dokter.
+    // 3. Pengganti jadwal (Swapping)
     int id_awal, id_pengganti, alternatif_found;
     for (int i = 0; i < NUM_DAYS; i++) {
         for (int j = 0; j < NUM_SHIFTS_PER_DAY; j++) {
-            // Cek apakah ada dokter yang dijadwalkan di luar preferensinya
             if (schedule[i][j] != 0 &&
                 check_preference(schedule[i][j], i, j) == 0) {
-                id_awal = schedule[i][j]; // Ini dokter yg konflik
+                id_awal = schedule[i][j];
                 alternatif_found = 0;
 
-                // Cari jadwal lain di minggu yang sama untuk ditukar
                 int start_of_week = i - (i % NUM_DAYS_PER_WEEK);
+                // FIX: Logika perulangan yang salah diperbaiki
                 for (int k = start_of_week;
                      k < start_of_week + NUM_DAYS_PER_WEEK; k++) {
                     for (int l = 0; l < 3; l++) {
                         if (i == k && j == l)
-                            continue; // Jangan tukar dengan diri sendiri
+                            continue; // Jangan menukar dengan diri sendiri
 
-                        id_pengganti =
-                            schedule[k][l]; // Ini kandidat untuk tukeran
+                        id_pengganti = schedule[k][l];
                         if (id_pengganti == 0)
                             continue;
 
-                        // Kondisi ideal: dokter awal cocok di jadwal baru, DAN
-                        // dokter pengganti cocok di jadwal lama.
                         if (check_preference(id_awal, k, l) &&
                             check_preference(id_pengganti, i, j)) {
-                            // Tukar posisi!
                             schedule[i][j] = id_pengganti;
                             schedule[k][l] = id_awal;
                             alternatif_found = 1;
@@ -171,16 +169,14 @@ void generate_schedule() {
         }
     }
 
-    // --- Tahap 4: Pencatatan Konflik Final ---
-    // Setelah dioptimasi, catat konflik yang masih tersisa.
+    // 4. Mencatat konflik yang tersisa
     for (int i = 0; i < NUM_DAYS; i++) {
         for (int j = 0; j < 3; j++) {
             if (schedule[i][j] != 0 &&
                 check_preference(schedule[i][j], i, j) == 0) {
                 Doctor *doc = findDoctorById(schedule[i][j]);
-                if (doc) {
-                    // Masukkan ke daftar konflik
-                    conflict_schedule(i, j, doc->id, doc->name);
+                if (doc) { // FIX: Pastikan dokter ada sebelum mengakses nama
+                    conflict_schedule(i + 1, j + 1, doc->id, doc->name);
                 }
             }
         }
