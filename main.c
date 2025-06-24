@@ -48,6 +48,19 @@ void run_cli_app() {
     int choice;
     while (1) {
         system(CLEAR_SCREEN);
+        printf(
+            "   _____      _              _       _             __   ___  \n");
+        printf(
+            "  / ____|    | |            | |     | |           /_ | / _ \\ \n");
+        printf(
+            " | (___   ___| |__   ___  __| |_   _| | ___ _ __   | || | | |\n");
+        printf("  \\___ \\ / __| '_ \\ / _ \\/ _` | | | | |/ _ \\ '__|  | || | "
+               "| |\n");
+        printf(
+            "  ____) | (__| | | |  __/ (_| | |_| | |  __/ |     | || |_| |\n");
+        printf(" |_____/ \\___|_| |_|\\___|\\__,_|\\__,_|_|\\___|_|     "
+               "|_(_)___/ \n");
+
         printf("\n--- Menu Utama Penjadwal Dokter ---\n"
                "1. Tampilkan Semua Dokter\n"
                "2. Kelola Dokter\n"
@@ -319,12 +332,11 @@ void handle_doctor_management() {
            "1. Tambah Dokter\n"
            "2. Edit Dokter\n"
            "3. Hapus Dokter\n"
-           "4. Atur Preferensi\n"
-           "5. Kembali\n"
+           "4. Kembali\n"
            "-------------------\n");
 
     int choice = get_int("Pilihan: ");
-    if (choice < 1 || choice > 4)
+    if (choice < 1 || choice > 3)
         return;
 
     Doctor *doc;
@@ -339,33 +351,10 @@ void handle_doctor_management() {
             addDoctor(name, max_shifts);
             printf("Dokter ditambahkan\n");
         }
-        break;
-
-    case 2: // Edit
-        doc = select_doctor();
-        if (!doc)
-            return;
-
-        get_str("Nama baru (Enter untuk skip): ", name, MAX_NAME_LENGTH);
-        max_shifts = get_int("Maks shift baru (0 untuk skip): ");
-        updateDoctor(doc->id, strlen(name) ? name : NULL,
-                     max_shifts > 0 ? max_shifts : -1);
-        printf("Dokter diperbarui\n");
-        break;
-
-    case 3: // Remove
-        doc = select_doctor();
-        if (doc && confirm("Yakin hapus dokter? (y/n): ")) {
-            removeDoctor(doc->id);
-            printf("Dokter dihapus\n");
+        doc = head;
+        while (doc->next != NULL) {
+            doc = doc->next;
         }
-        break;
-
-    case 4: // Preferences
-        doc = select_doctor();
-        if (!doc)
-            return;
-
         printf("\n--- Preferensi dr. %s ---\n", doc->name);
         while (1) {
             int day = get_int("Hari (1-7, 0 untuk selesai): ");
@@ -384,6 +373,46 @@ void handle_doctor_management() {
             if (pref == 0 || pref == 1) {
                 setDoctorPreference(doc->id, day, shift, pref);
             }
+        }
+        break;
+
+    case 2: // Edit
+        doc = select_doctor();
+        if (!doc)
+            return;
+
+        get_str("Nama baru (Enter untuk skip): ", name, MAX_NAME_LENGTH);
+        max_shifts = get_int("Maks shift baru (0 untuk skip): ");
+        updateDoctor(doc->id, strlen(name) ? name : NULL,
+                     max_shifts > 0 ? max_shifts : -1);
+        printf("Dokter diperbarui\n");
+        printf("\n--- Preferensi dr. %s ---\n", doc->name);
+        while (1) {
+            int day = get_int("Hari (1-7, 0 untuk selesai): ");
+            if (day == 0)
+                break;
+            if (day < 1 || day > 7)
+                continue;
+
+            day--;
+
+            int shift = get_int("Shift (1-3): ") - 1;
+            if (shift < 0 || shift >= NUM_SHIFTS_PER_DAY)
+                continue;
+
+            int pref = get_int("Tersedia? (1=Ya, 0=Tidak): ");
+            if (pref == 0 || pref == 1) {
+                setDoctorPreference(doc->id, day, shift, pref);
+            }
+        }
+
+        break;
+
+    case 3: // Remove
+        doc = select_doctor();
+        if (doc && confirm("Yakin hapus dokter? (y/n): ")) {
+            removeDoctor(doc->id);
+            printf("Dokter dihapus\n");
         }
         break;
     }
